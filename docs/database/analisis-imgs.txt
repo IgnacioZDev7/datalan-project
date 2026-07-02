@@ -1,0 +1,408 @@
+Sí, **nos sirven muchísimo**. De hecho, diría que estas fotografías son **más valiosas para el diseño de la base de datos que los documentos de propuesta**, porque muestran cómo trabaja realmente el área técnica.
+
+Después de analizarlas, encontré varias reglas de negocio que no aparecían claramente en la documentación.
+
+---
+
+# Lo primero que descubrí
+
+## DATALAN NO maneja un único tipo de inventario.
+
+Maneja al menos **tres tipos distintos**.
+
+### 1. Material consumible
+
+Ejemplos:
+
+* Cable Drop
+* Cable MM
+* Cable SM
+* Patch Cord
+* Conectores
+
+Aquí lo importante es:
+
+* longitud
+* cantidad
+* unidad
+
+No interesa un número de serie.
+
+---
+
+### 2. Equipos
+
+En las últimas hojas aparecen listas como:
+
+* Huawei
+* Mikrotik
+* Ubiquiti
+* ONT
+* etc.
+
+Estos equipos sí parecen identificarse individualmente.
+
+Eso significa que probablemente tengan:
+
+* número de serie
+* MAC
+* modelo
+
+---
+
+### 3. Herramientas
+
+También se observa que existen equipos técnicos reutilizables.
+
+Por ejemplo:
+
+* fusionadora
+* OTDR
+* medidor
+* herramientas
+
+Estas deberán poder asignarse a un técnico.
+
+---
+
+# Segunda conclusión importante
+
+El inventario NO funciona solamente por cantidades.
+
+En esta hoja aparecen columnas como:
+
+* Marca del cable
+* Número de hilos
+* Tipo
+* Metraje inicial
+* Instalado / En espera
+* Fecha salida
+* Empresa / Dirección
+* Fecha ingreso
+
+Eso significa que un rollo de cable **tiene historia propia**.
+
+Ejemplo:
+
+```text
+Carrete Drop
+
+2000 m
+
+↓
+
+Se instalaron 250 m
+
+↓
+
+Quedan 1750 m
+```
+
+No es un producto cualquiera.
+
+Es un recurso cuyo saldo cambia continuamente.
+
+---
+
+## Esto cambia completamente el diseño.
+
+Yo **no almacenaría solamente el stock**.
+
+Almacenaría:
+
+```text
+Carrete
+
+↓
+
+Movimientos
+
+↓
+
+Metros consumidos
+
+↓
+
+Metros restantes
+```
+
+Es prácticamente un Kardex especializado.
+
+---
+
+# Tercera conclusión
+
+Los movimientos contienen información del destino.
+
+Veo columnas como:
+
+* Empresa
+* Dirección
+
+Eso significa que una salida no es simplemente:
+
+```text
+Salida
+```
+
+Sino algo como:
+
+```text
+Salida
+
+↓
+
+Proyecto
+
+↓
+
+Empresa
+
+↓
+
+Dirección
+
+↓
+
+Responsable
+```
+
+Eso implica que el movimiento necesita mucha más información.
+
+---
+
+# Cuarta conclusión
+
+El inventario está basado en movimientos, no en stock.
+
+Eso es excelente.
+
+Porque el stock debería calcularse como:
+
+```text
+Entradas
+
+-
+
+Salidas
+
++
+
+Devoluciones
+
+=
+
+Stock actual
+```
+
+Nunca editaríamos directamente la cantidad.
+
+---
+
+# Quinta conclusión
+
+Las fotografías del cuaderno muestran códigos escritos a mano.
+
+Eso significa que muchos equipos ya tienen identificadores internos.
+
+Más adelante podremos convertirlos en:
+
+* Código QR
+* Código de barras
+* Código interno
+
+---
+
+# Sexta conclusión
+
+Hay materiales con atributos muy específicos.
+
+Por ejemplo:
+
+```text
+Cable
+
+Marca
+
+Número de hilos
+
+Tipo
+
+Metraje
+```
+
+Eso significa que una categoría tendrá atributos distintos a otra.
+
+---
+
+# Mi propuesta cambia respecto a lo que habíamos hablado
+
+Antes pensaba en una sola tabla `productos`.
+
+Ahora propondría algo mucho más profesional.
+
+## Catálogo
+
+```text
+Categoría
+
+Marca
+
+Modelo
+
+Unidad de medida
+
+Producto
+```
+
+---
+
+## Inventario
+
+```text
+Lote
+
+Activo
+
+Movimiento
+
+Detalle Movimiento
+```
+
+---
+
+## Ubicación
+
+```text
+Almacén
+
+Ubicación física
+```
+
+---
+
+## Operación
+
+```text
+Proyecto
+
+Empresa
+
+Dirección
+
+Técnico
+
+Entrega
+```
+
+---
+
+# La decisión más importante
+
+Después de ver las hojas del inventario, **ya puedo responder la pregunta que habíamos dejado pendiente**.
+
+No debemos construir un inventario basado únicamente en productos.
+
+Debemos construir un inventario híbrido.
+
+Es decir:
+
+## Consumibles
+
+```text
+Cable
+
+Conectores
+
+Patch Cord
+
+Tornillos
+```
+
+Se controlan por cantidad, longitud o unidades.
+
+---
+
+## Activos
+
+```text
+Router
+
+Switch
+
+ONU
+
+OLT
+
+Fusionadora
+
+OTDR
+```
+
+Cada uno tiene identidad propia.
+
+---
+
+# Algo que también detecté
+
+Los cables no deberían manejarse igual que los demás productos.
+
+Yo crearía un tipo especial.
+
+Porque tienen atributos como:
+
+* metraje inicial
+* metraje disponible
+* tipo de fibra
+* número de hilos
+* marca
+
+No tendría sentido guardar eso en todos los productos.
+
+---
+
+# Mi propuesta de arquitectura de la base de datos
+
+Ya no haría 15 tablas independientes.
+
+Primero construiría cuatro grandes bloques:
+
+```
+SEGURIDAD
+------------
+Usuarios
+Roles
+Permisos
+
+CATÁLOGO
+------------
+Categorías
+Marcas
+Modelos
+Unidades
+Productos
+
+INVENTARIO
+------------
+Lotes
+Activos
+Movimientos
+DetalleMovimiento
+
+OPERACIÓN
+------------
+Proyectos
+Empresas
+Ubicaciones
+Asignaciones
+```
+
+Y luego iríamos agregando tablas auxiliares.
+
+## Mi recomendación
+
+A partir de este punto **ya no improvisaría el modelo**. Con la información de los documentos y las fotografías ya tenemos suficiente contexto para diseñar una base de datos sólida.
+
+El siguiente paso debería ser elaborar primero un **Documento de Modelo de Dominio**, donde definiremos todas las entidades del negocio, sus atributos y las relaciones entre ellas. Ese documento será la fuente para construir el diagrama en DBDiagram y, posteriormente, generar las migraciones de Laravel sin tener que rehacer el trabajo.
+
+Creo que esa es la mejor estrategia para este proyecto, porque reducirá mucho el riesgo de cambios estructurales durante el desarrollo.
