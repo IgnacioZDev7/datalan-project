@@ -1,0 +1,532 @@
+// =====================================================================
+//  DATALAN BOLIVIA S.R.L. - Sistema de Inventario del Area Tecnica
+//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v2 (normalizado 3FN)
+//  Regla de oro: el inventario se basa en MOVIMIENTOS, no en stock.
+//                stock = entradas - salidas + devoluciones
+//
+//  CHANGELOG v2 (ver analisis-normalizacion.md):
+//   - F1: eliminado productos.tipo_manejo (se deriva de categoria.tipo_inventario)
+//   - F2: eliminado productos.consumible  (se deriva de categoria.tipo_inventario)
+//   - F3: eliminado productos.marca_id     (la marca se obtiene via modelo)
+//   - F4: eliminado almacen_id de activos y carretes (se obtiene via ubicacion)
+//   - F5: eliminado movimiento_detalles.unidad_id (se usa la del producto)
+//   - F6: movimiento_detalles.estado -> enum estado_item
+//   - F11: agregadas inventarios_fisicos + inventario_fisico_detalles (conteo)
+// =====================================================================
+
+Project datalan {
+  database_type: 'MySQL'
+  Note: '''
+    Sistema de inventario para el area tecnica de DATALAN Bolivia.
+    Inventario hibrido; la naturaleza del producto la define
+    categorias.tipo_inventario:
+      - consumible -> existencia por cantidad  (tabla stocks)
+      - cable      -> existencia por metraje   (tabla carretes)
+      - activo     -> unidad individual        (tabla activos)
+      - herramienta-> unidad individual asignable (tabla activos + asignaciones)
+    El stock nunca se edita directo: se deriva de los movimientos.
+  '''
+}
+
+// =====================================================================
+//  ENUMS
+// =====================================================================
+
+Enum tipo_inventario {
+  consumible   [note: 'se controla por cantidad -> stocks']
+  cable        [note: 'fibra optica, por metraje -> carretes']
+  activo       [note: 'equipo de red, identidad propia -> activos']
+  herramienta  [note: 'equipo de precision reutilizable, asignable -> activos']
+}
+
+Enum estado_activo {
+  nuevo
+  bueno
+  regular
+  danado
+  en_reparacion
+  baja
+}
+
+Enum estado_item {
+  nuevo
+  bueno
+  regular
+  danado
+}
+
+Enum tipo_fibra {
+  MM  [note: 'multimodo']
+  SM  [note: 'monomodo']
+}
+
+Enum estado_carrete {
+  en_almacen
+  instalado
+  en_espera
+  inexistente
+}
+
+Enum tipo_movimiento {
+  entrada
+  salida
+  devolucion
+  baja
+  traslado
+  ajuste
+}
+
+Enum estado_proyecto {
+  planificado
+  en_progreso
+  finalizado
+  cancelado
+}
+
+Enum estado_asignacion {
+  asignado
+  devuelto
+  perdido
+  danado
+}
+
+Enum estado_conteo {
+  en_proceso
+  cerrado
+  anulado
+}
+
+Enum nivel_alerta {
+  info
+  advertencia
+  critico
+}
+
+// =====================================================================
+//  BLOQUE 1 - SEGURIDAD
+// =====================================================================
+
+Table users {
+  id            bigint       [pk, increment]
+  name          varchar(120)
+  email         varchar(150) [unique, not null]
+  password      varchar(255) [not null]
+  cargo         varchar(100)
+  telefono      varchar(30)
+  activo        boolean      [not null, default: true, note: 'baja/desactivacion de usuario']
+  ultimo_acceso datetime
+  created_at    timestamp
+  updated_at    timestamp
+}
+
+Table roles {
+  id          bigint       [pk, increment]
+  nombre      varchar(80)  [unique, not null]
+  slug        varchar(80)  [unique, not null]
+  descripcion varchar(255)
+  created_at  timestamp
+  updated_at  timestamp
+  Note: 'Roles dinamicos: gerente, encargado_almacen, jefe_tecnico, auxiliar...'
+}
+
+Table permisos {
+  id         bigint       [pk, increment]
+  nombre     varchar(120) [not null]
+  slug       varchar(120) [unique, not null]
+  modulo     varchar(80)  [note: 'inventario, movimientos, reportes, usuarios...']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table role_user {
+  role_id bigint [ref: > roles.id]
+  user_id bigint [ref: > users.id]
+  Indexes {
+    (role_id, user_id) [pk]
+  }
+}
+
+Table permiso_role {
+  permiso_id bigint [ref: > permisos.id]
+  role_id    bigint [ref: > roles.id]
+  Indexes {
+    (permiso_id, role_id) [pk]
+  }
+}
+
+Table bitacora {
+  id                bigint      [pk, increment]
+  user_id           bigint      [ref: > users.id, note: 'quien ejecuto la accion']
+  accion            varchar(30) [note: 'creado, actualizado, eliminado, login...']
+  modelo            varchar(80) [note: 'tabla/entidad afectada']
+  modelo_id         bigint      [note: 'id del registro afectado']
+  valores_antiguos  json
+  valores_nuevos    json
+  ip                varchar(45)
+  created_at        timestamp
+  Indexes {
+    (modelo, modelo_id)
+    user_id
+  }
+  Note: 'Historial de acciones por usuario (auditoria).'
+}
+
+// =====================================================================
+//  BLOQUE 2 - CATALOGO
+// =====================================================================
+
+Table categorias {
+  id                 bigint       [pk, increment]
+  nombre             varchar(120) [not null]
+  tipo_inventario    tipo_inventario [not null, note: 'UNICA fuente de la naturaleza del producto']
+  categoria_padre_id bigint       [ref: > categorias.id, note: 'jerarquia opcional']
+  descripcion        varchar(255)
+  activo             boolean      [not null, default: true]
+  created_at         timestamp
+  updated_at         timestamp
+}
+
+Table marcas {
+  id         bigint       [pk, increment]
+  nombre     varchar(120) [unique, not null]
+  activo     boolean      [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table modelos {
+  id          bigint       [pk, increment]
+  marca_id    bigint       [ref: > marcas.id, not null]
+  nombre      varchar(120) [not null]
+  descripcion varchar(255)
+  created_at  timestamp
+  updated_at  timestamp
+  Indexes {
+    (marca_id, nombre) [unique]
+  }
+}
+
+Table unidades_medida {
+  id          bigint      [pk, increment]
+  nombre      varchar(60) [not null, note: 'metro, unidad, caja, bolsa, par, rollo']
+  abreviatura varchar(10) [unique, not null, note: 'm, u, caja, par...']
+  created_at  timestamp
+  updated_at  timestamp
+}
+
+Table productos {
+  id               bigint       [pk, increment]
+  codigo           varchar(60)  [unique, not null, note: 'codigo interno / QR / codigo de barras']
+  nombre           varchar(180) [not null]
+  categoria_id     bigint       [ref: > categorias.id, not null]
+  modelo_id        bigint       [ref: > modelos.id, note: 'la marca se obtiene via modelo (F3)']
+  unidad_id        bigint       [ref: > unidades_medida.id, not null]
+  retornable       boolean      [not null, default: false]
+  especificaciones json         [note: 'atributos variables por categoria (velocidad, capacidad...)']
+  activo           boolean      [not null, default: true]
+  created_at       timestamp
+  updated_at       timestamp
+  Indexes {
+    categoria_id
+    modelo_id
+  }
+  Note: 'Ficha de catalogo (SKU). La naturaleza la define categoria.tipo_inventario. La existencia fisica vive en stocks / carretes / activos.'
+}
+
+// =====================================================================
+//  BLOQUE 3 - INVENTARIO (fisico)
+// =====================================================================
+
+Table almacenes {
+  id             bigint       [pk, increment]
+  nombre         varchar(120) [not null]
+  direccion      varchar(255)
+  responsable_id bigint       [ref: > users.id]
+  activo         boolean      [not null, default: true]
+  created_at     timestamp
+  updated_at     timestamp
+}
+
+Table ubicaciones {
+  id          bigint      [pk, increment]
+  almacen_id  bigint      [ref: > almacenes.id, not null]
+  codigo      varchar(60) [not null, note: 'estante / seccion / posicion. Cada almacen tiene una ubicacion GENERAL por defecto']
+  descripcion varchar(255)
+  created_at  timestamp
+  updated_at  timestamp
+  Indexes {
+    (almacen_id, codigo) [unique]
+  }
+}
+
+// --- Existencia por cantidad (cache derivado de movimientos, F7) ---
+Table stocks {
+  id              bigint        [pk, increment]
+  producto_id     bigint        [ref: > productos.id, not null]
+  almacen_id      bigint        [ref: > almacenes.id, not null]
+  cantidad_actual decimal(12,2) [not null, default: 0]
+  updated_at      timestamp
+  Indexes {
+    (producto_id, almacen_id) [unique]
+  }
+  Note: 'Solo productos consumibles. CACHE recalculado por observer desde movimiento_detalles. Nunca se edita a mano.'
+}
+
+// --- Equipos activos y herramientas (uno por unidad fisica) ---
+Table activos {
+  id             bigint        [pk, increment]
+  producto_id    bigint        [ref: > productos.id, not null]
+  codigo_interno varchar(60)   [unique, not null, note: 'etiqueta QR / codigo escrito a mano digitalizado']
+  nro_serie      varchar(120)
+  mac            varchar(30)
+  estado         estado_activo [not null, default: 'bueno']
+  ubicacion_id   bigint        [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
+  tecnico_id     bigint        [ref: > tecnicos.id, note: 'custodia actual si es herramienta asignada']
+  fecha_ingreso  date
+  observaciones  varchar(255)  [note: 'ej: bateria dañada']
+  created_at     timestamp
+  updated_at     timestamp
+  Indexes {
+    producto_id
+    nro_serie
+    estado
+  }
+  Note: 'Cubre equipos activos (router, ONT, OLT...) y herramientas (fusionadora, OTDR...). El tipo lo define categoria.tipo_inventario.'
+}
+
+// --- Carretes de cable de fibra (saldo propio tipo Kardex) ---
+Table carretes {
+  id                 bigint        [pk, increment]
+  producto_id        bigint        [ref: > productos.id, not null]
+  codigo             varchar(60)   [unique, not null]
+  nro_hilos          smallint      [note: '1, 2, 4...']
+  tipo_fibra         tipo_fibra
+  metraje_inicial    decimal(10,2) [not null]
+  metraje_disponible decimal(10,2) [not null, note: 'saldo actual; disminuye con cada salida']
+  estado             estado_carrete [not null, default: 'en_almacen']
+  ubicacion_id       bigint        [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
+  fecha_ingreso      date
+  observaciones      varchar(255)
+  created_at         timestamp
+  updated_at         timestamp
+  Indexes {
+    producto_id
+    estado
+  }
+  Note: 'Carrete de 2000m del que se instalan 250m -> quedan 1750m. El consumo se registra en movimiento_detalles.'
+}
+
+// --- Movimientos (fuente de verdad del inventario) ---
+Table movimientos {
+  id                 bigint         [pk, increment]
+  codigo             varchar(60)    [unique, not null]
+  tipo               tipo_movimiento [not null]
+  fecha              datetime       [not null]
+  almacen_origen_id  bigint         [ref: > almacenes.id, note: 'salidas, traslados, bajas']
+  almacen_destino_id bigint         [ref: > almacenes.id, note: 'entradas, traslados']
+  proveedor_id       bigint         [ref: > proveedores.id, note: 'solo entradas']
+  proyecto_id        bigint         [ref: > proyectos.id, note: 'salidas hacia instalacion']
+  tecnico_id         bigint         [ref: > tecnicos.id, note: 'responsable que recibe/entrega']
+  registrado_por     bigint         [ref: > users.id, not null]
+  autorizado_por     bigint         [ref: > users.id]
+  documento_referencia varchar(120) [note: 'factura, nota, cuaderno...']
+  observaciones      text
+  created_at         timestamp
+  updated_at         timestamp
+  Indexes {
+    tipo
+    fecha
+    proyecto_id
+  }
+}
+
+Table movimiento_detalles {
+  id            bigint        [pk, increment]
+  movimiento_id bigint        [ref: > movimientos.id, not null]
+  producto_id   bigint        [ref: > productos.id, not null]
+  activo_id     bigint        [ref: > activos.id, note: 'si el producto es tipo activo/herramienta']
+  carrete_id    bigint        [ref: > carretes.id, note: 'si el producto es cable']
+  cantidad      decimal(12,2) [note: 'consumibles / unidades por serie']
+  metraje       decimal(10,2) [note: 'metros consumidos del carrete']
+  estado        estado_item   [note: 'estado del item en este movimiento (F6)']
+  observaciones varchar(255)
+  Indexes {
+    movimiento_id
+    producto_id
+  }
+  Note: 'Regla (no expresable en DBML): exactamente uno de {activo_id, carrete_id} segun tipo del producto; consumibles usan solo cantidad. La unidad es la del producto (F5).'
+}
+
+// =====================================================================
+//  BLOQUE 4 - OPERACION
+// =====================================================================
+
+Table empresas {
+  id         bigint       [pk, increment]
+  nombre     varchar(180) [not null]
+  nit        varchar(30)
+  direccion  varchar(255)
+  telefono   varchar(30)
+  contacto   varchar(120)
+  activo     boolean      [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+  Note: 'Cliente destino de las instalaciones (ej: BTV Oruro, SEGIP Sucre).'
+}
+
+Table proveedores {
+  id         bigint       [pk, increment]
+  nombre     varchar(180) [not null]
+  nit        varchar(30)
+  direccion  varchar(255)
+  telefono   varchar(30)
+  contacto   varchar(120)
+  activo     boolean      [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table tecnicos {
+  id         bigint       [pk, increment]
+  nombre     varchar(120) [not null]
+  ci         varchar(30)
+  telefono   varchar(30)
+  cargo      varchar(80)
+  user_id    bigint       [ref: > users.id, note: 'opcional: si el tecnico ademas usa el sistema']
+  activo     boolean      [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table proyectos {
+  id            bigint          [pk, increment]
+  codigo        varchar(60)     [unique, not null]
+  nombre        varchar(180)    [not null]
+  empresa_id    bigint          [ref: > empresas.id]
+  direccion     varchar(255)    [note: 'direccion de la instalacion']
+  tecnico_id    bigint          [ref: > tecnicos.id, note: 'responsable principal']
+  estado        estado_proyecto [not null, default: 'planificado']
+  fecha_inicio  date
+  fecha_fin     date
+  observaciones text
+  created_at    timestamp
+  updated_at    timestamp
+}
+
+// --- Asignacion / custodia de herramientas a tecnicos (historial) ---
+Table asignaciones {
+  id               bigint            [pk, increment]
+  activo_id        bigint            [ref: > activos.id, not null]
+  tecnico_id       bigint            [ref: > tecnicos.id, not null]
+  proyecto_id      bigint            [ref: > proyectos.id]
+  fecha_asignacion datetime          [not null]
+  fecha_devolucion datetime
+  estado           estado_asignacion [not null, default: 'asignado']
+  observaciones    varchar(255)
+  registrado_por   bigint            [ref: > users.id]
+  created_at       timestamp
+  updated_at       timestamp
+  Indexes {
+    activo_id
+    tecnico_id
+  }
+  Note: 'Historial de entrega/devolucion de herramientas (fusionadora, OTDR) a un tecnico.'
+}
+
+// =====================================================================
+//  BLOQUE 5 - CONTEO FISICO (reconciliacion "faltantes", F11)
+// =====================================================================
+
+Table inventarios_fisicos {
+  id             bigint        [pk, increment]
+  codigo         varchar(60)   [unique, not null]
+  almacen_id     bigint        [ref: > almacenes.id, not null]
+  fecha          date          [not null]
+  responsable_id bigint        [ref: > users.id]
+  estado         estado_conteo [not null, default: 'en_proceso']
+  observaciones  text
+  created_at     timestamp
+  updated_at     timestamp
+  Note: 'Conteo fisico del almacen. Las diferencias se ajustan con un movimiento tipo ajuste.'
+}
+
+Table inventario_fisico_detalles {
+  id                    bigint        [pk, increment]
+  inventario_fisico_id  bigint        [ref: > inventarios_fisicos.id, not null]
+  producto_id           bigint        [ref: > productos.id, not null]
+  activo_id             bigint        [ref: > activos.id, note: 'si es un item por serie']
+  cantidad_sistema      decimal(12,2) [not null, default: 0]
+  cantidad_fisica       decimal(12,2) [not null, default: 0]
+  observaciones         varchar(255)
+  Indexes {
+    inventario_fisico_id
+    producto_id
+  }
+  Note: 'diferencia = cantidad_fisica - cantidad_sistema (NO se almacena, es derivable).'
+}
+
+// =====================================================================
+//  BLOQUE 6 - ALERTAS (stock minimo, mantenimiento)
+// =====================================================================
+
+Table alertas {
+  id          bigint       [pk, increment]
+  tipo        varchar(60)  [note: 'stock_minimo, mantenimiento, devolucion_pendiente']
+  producto_id bigint       [ref: > productos.id]
+  activo_id   bigint       [ref: > activos.id]
+  mensaje     varchar(255) [not null]
+  nivel       nivel_alerta [not null, default: 'advertencia']
+  leida       boolean      [not null, default: false]
+  created_at  timestamp
+  Indexes {
+    leida
+  }
+}
+
+// =====================================================================
+//  AGRUPACIONES VISUALES (dbdiagram TableGroups)
+// =====================================================================
+
+TableGroup seguridad {
+  users
+  roles
+  permisos
+  role_user
+  permiso_role
+  bitacora
+}
+
+TableGroup catalogo {
+  categorias
+  marcas
+  modelos
+  unidades_medida
+  productos
+}
+
+TableGroup inventario {
+  almacenes
+  ubicaciones
+  stocks
+  activos
+  carretes
+  movimientos
+  movimiento_detalles
+}
+
+TableGroup operacion {
+  empresas
+  proveedores
+  tecnicos
+  proyectos
+  asignaciones
+}
+
+TableGroup conteo {
+  inventarios_fisicos
+  inventario_fisico_detalles
+}
+
+TableGroup alertas_grp {
+  alertas
+}
