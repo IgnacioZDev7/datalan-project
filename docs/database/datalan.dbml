@@ -1,9 +1,17 @@
 // =====================================================================
 //  DATALAN BOLIVIA S.R.L. - Sistema de Inventario del Area Tecnica
-//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v4
+//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v5
 //  Regla de oro: el inventario se basa en MOVIMIENTOS, no en stock.
 //                stock = entradas - salidas + devoluciones
 //
+//  CHANGELOG v5 (ecosistema Spatie + integridad):
+//   - Roles/permisos -> paquete spatie/laravel-permission (se quitan del modelo
+//     las tablas roles/permisos/rol_usuario/permiso_rol; se configuran en espanol).
+//   - Auditoria -> paquete spatie/laravel-activitylog (se quita la tabla bitacora).
+//   - Nueva tabla activo_historial: linea de tiempo de estado/situacion del activo.
+//   - activos.nro_serie y activos.mac -> UNIQUE (en MySQL admite multiples NULL).
+//   - Nota MySQL: UNIQUE + soft delete NO basta (NULLs distintos). La unicidad de
+//     codigos entre no-borrados se valida a nivel de app (Rule::unique()->whereNull).
 //  CHANGELOG v4 (observaciones G2..G10):
 //   - G2 : soft delete (deleted_at) en tablas de negocio (recuperacion de
 //          registros eliminados). usuarios NO lleva (usa el booleano activo).
@@ -137,57 +145,15 @@ Table usuarios {
   updated_at         timestamp
 }
 
-Table roles {
-  id          bigint       [pk, increment]
-  nombre      varchar(80)  [unique, not null]
-  slug        varchar(80)  [unique, not null, note: 'identificador estable para el codigo, ej: encargado-almacen']
-  descripcion varchar(255)
-  created_at  timestamp
-  updated_at  timestamp
-  Note: 'Roles dinamicos: gerente, encargado_almacen, jefe_tecnico, auxiliar...'
-}
-
-Table permisos {
-  id         bigint       [pk, increment]
-  nombre     varchar(120) [not null]
-  slug       varchar(120) [unique, not null]
-  modulo     varchar(80)  [note: 'inventario, movimientos, reportes, usuarios...']
-  created_at timestamp
-  updated_at timestamp
-}
-
-Table rol_usuario {
-  rol_id     bigint [ref: > roles.id]
-  usuario_id bigint [ref: > usuarios.id]
-  Indexes {
-    (rol_id, usuario_id) [pk]
-  }
-}
-
-Table permiso_rol {
-  permiso_id bigint [ref: > permisos.id]
-  rol_id     bigint [ref: > roles.id]
-  Indexes {
-    (permiso_id, rol_id) [pk]
-  }
-}
-
-Table bitacora {
-  id               bigint      [pk, increment]
-  usuario_id       bigint      [ref: > usuarios.id, note: 'quien ejecuto la accion']
-  accion           varchar(30) [note: 'creado, actualizado, eliminado, login...']
-  entidad          varchar(80) [note: 'tabla/entidad afectada']
-  entidad_id       bigint      [note: 'id del registro afectado']
-  valores_antiguos json
-  valores_nuevos   json
-  ip               varchar(45)
-  created_at       timestamp
-  Indexes {
-    (entidad, entidad_id)
-    usuario_id
-  }
-  Note: 'Historial de acciones por usuario (auditoria).'
-}
+// --- Roles y permisos: los provee spatie/laravel-permission ---
+//   Tablas del paquete (nombres configurables en espanol via config/permission.php):
+//     roles, permisos, permiso_rol (role_has_permissions),
+//     modelo_tiene_roles (model_has_roles), modelo_tiene_permisos (model_has_permissions).
+//   Se asignan a usuarios via el trait HasRoles. NO se modelan aqui para no duplicar.
+//
+// --- Auditoria: la provee spatie/laravel-activitylog ---
+//   Tabla del paquete: activity_log (causer polimorfico, subject polimorfico,
+//   properties json con old/new). Reemplaza a la antigua tabla bitacora.
 
 // --- Direcciones (polimorfica: sirve a varias entidades) ---
 Table direcciones {
@@ -319,9 +285,9 @@ Table existencias {
 Table activos {
   id               bigint          [pk, increment]
   producto_id      bigint          [ref: > productos.id, not null]
-  codigo_interno   varchar(60)     [unique, not null, note: 'etiqueta QR / codigo escrito a mano digitalizado. UNIQUE debe incluir deleted_at (G2)']
-  nro_serie        varchar(120)
-  mac              varchar(30)
+  codigo_interno   varchar(60)     [unique, not null, note: 'etiqueta QR / codigo escrito a mano digitalizado. Unicidad entre no-borrados a nivel de app (G2)']
+  nro_serie        varchar(120)    [unique, note: 'unico; en MySQL admite multiples NULL para seriales desconocidos']
+  mac              varchar(30)     [unique, note: 'unica; admite NULL']
   estado           estado_activo   [not null, default: 'bueno', note: 'condicion FISICA']
   situacion        situacion_activo [not null, default: 'en_almacen', note: 'ciclo de vida / donde esta (G3)']
   ubicacion_id     bigint          [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
@@ -341,6 +307,23 @@ Table activos {
     situacion
   }
   Note: 'Cubre equipos activos (router, ONT, OLT...) y herramientas (fusionadora, OTDR...). El tipo lo define categoria.tipo_inventario.'
+}
+
+// --- Historial de estado/situacion del activo (trazabilidad de dominio) ---
+Table activo_historial {
+  id                 bigint          [pk, increment]
+  activo_id          bigint          [ref: > activos.id, not null]
+  estado_anterior    estado_activo   [note: 'nulo en el registro inicial']
+  estado_nuevo       estado_activo
+  situacion_anterior situacion_activo [note: 'nulo en el registro inicial']
+  situacion_nueva    situacion_activo
+  motivo             varchar(255)
+  usuario_id         bigint          [ref: > usuarios.id, note: 'quien realizo el cambio']
+  created_at         timestamp       [note: 'fecha del cambio']
+  Indexes {
+    activo_id
+  }
+  Note: 'Se registra un renglon cada vez que cambia estado o situacion de un activo. Complementa al Activity Log con una linea de tiempo funcional (con motivo) para el usuario.'
 }
 
 // --- Carretes de cable de fibra (saldo propio tipo Kardex) ---
@@ -547,11 +530,6 @@ Table alertas {
 
 TableGroup seguridad {
   usuarios
-  roles
-  permisos
-  rol_usuario
-  permiso_rol
-  bitacora
   direcciones
 }
 
@@ -568,6 +546,7 @@ TableGroup inventario {
   ubicaciones
   existencias
   activos
+  activo_historial
   carretes
   movimientos
   movimiento_detalles

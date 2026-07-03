@@ -141,10 +141,13 @@ y para habilitar los reportes de "faltantes por modelo".
 5. `activos`: si `situacion = asignado`, `tecnico_id` no puede ser nulo (G3).
 6. `activos.activo_padre_id` (kits/maletines) no debe formar ciclos (G4).
 7. `inventario_fisico_detalles`: a lo sumo uno de {`activo_id`, `carrete_id`} (G6).
-8. Índices UNIQUE + soft delete (G2): `productos.codigo`, `activos.codigo_interno`,
-   `carretes.codigo`, `usuarios.correo_electronico`/`ci` deben ser UNIQUE
-   **incluyendo `deleted_at`** (o validar unicidad solo entre no-borrados), para que
-   un registro borrado no bloquee el código.
+8. Índices UNIQUE + soft delete (G2), **corrección MySQL**: en MySQL un
+   `UNIQUE(codigo, deleted_at)` NO garantiza un solo activo por código (cada `NULL`
+   se considera distinto). Por eso la unicidad entre **no-borrados** de
+   `productos.codigo`, `activos.codigo_interno`, `carretes.codigo`,
+   `usuarios.correo_electronico`/`ci` se valida **a nivel de aplicación**
+   (`Rule::unique()->whereNull('deleted_at')`). En PostgreSQL se resolvería con un
+   índice único parcial `UNIQUE(codigo) WHERE deleted_at IS NULL`.
 9. `activos.credenciales` (G10): SIEMPRE cifrado en la app (encrypted cast); nunca
    texto plano.
 10. `direcciones` (polimórfica): sin FK real sobre `direccionable_id`; la integridad
@@ -173,3 +176,22 @@ y para habilitar los reportes de "faltantes por modelo".
 **Pendiente P3 (costos/ventas):** fase futura. Se agregará
 `movimiento_detalles.costo_unitario` + `productos.costo_referencial` sin romper el
 modelo actual. El precio de venta corresponde al módulo de ventas (v2).
+
+**v5 — ecosistema Spatie + integridad:**
+- **Roles/permisos → `spatie/laravel-permission`.** Se quitaron del modelo
+  `roles`, `permisos`, `rol_usuario`, `permiso_rol`; las crea el paquete (nombres de
+  tabla configurables en español vía `config/permission.php`). Se usan con el trait
+  `HasRoles` en el modelo `Usuario`.
+- **Auditoría → `spatie/laravel-activitylog`.** Se quitó la tabla `bitacora`; el
+  paquete registra causer/subject polimórficos y old/new en JSON (tabla `activity_log`).
+- **`activo_historial`** (nueva): línea de tiempo funcional del activo
+  (estado/situación anterior→nuevo, motivo, usuario). Complementa al Activity Log con
+  una vista de dominio para el usuario. Regla: registrar un renglón cada vez que
+  cambie `estado` o `situacion` de un activo.
+- **`activos.nro_serie` y `activos.mac` → UNIQUE** (en MySQL admite múltiples NULL
+  para seriales/MAC desconocidos).
+
+**Diferido a futuro (consistente):** mantenimiento de equipos, `producto_proveedor`
+(su valor —precio, tiempo de entrega— es de compras/costos), etiquetas
+(`tags`), y adjuntos/comprobantes (tabla polimórfica opcional). El **kardex** y el
+**dashboard** no son tablas: son consultas/vistas sobre `movimientos`.
