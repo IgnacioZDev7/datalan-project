@@ -138,3 +138,38 @@ y para habilitar los reportes de "faltantes por modelo".
 2. `carretes.metraje_disponible <= metraje_inicial` y `>= 0`.
 3. Si `producto.modelo_id` no es nulo, la marca efectiva es la del modelo.
 4. `movimientos`: `proveedor_id` solo en entradas; `proyecto_id` solo en salidas.
+5. `activos`: si `situacion = asignado`, `tecnico_id` no puede ser nulo (G3).
+6. `activos.activo_padre_id` (kits/maletines) no debe formar ciclos (G4).
+7. `inventario_fisico_detalles`: a lo sumo uno de {`activo_id`, `carrete_id`} (G6).
+8. Índices UNIQUE + soft delete (G2): `productos.codigo`, `activos.codigo_interno`,
+   `carretes.codigo`, `usuarios.correo_electronico`/`ci` deben ser UNIQUE
+   **incluyendo `deleted_at`** (o validar unicidad solo entre no-borrados), para que
+   un registro borrado no bloquee el código.
+9. `activos.credenciales` (G10): SIEMPRE cifrado en la app (encrypted cast); nunca
+   texto plano.
+10. `direcciones` (polimórfica): sin FK real sobre `direccionable_id`; la integridad
+    se valida en la aplicación.
+
+---
+
+## Actualizaciones v3 / v4 (registro de cambios de nombres y adiciones)
+
+**v3 — idioma y estructura:**
+- Todo el esquema pasó a **español**: `users`→`usuarios`, `stocks`→`existencias`,
+  `role_user`→`rol_usuario`, `permiso_role`→`permiso_rol`, `user_id`→`usuario_id`,
+  `role_id`→`rol_id`, `bitacora.modelo`→`entidad`.
+- `usuarios`: `nombres`, `apellido_paterno`, `apellido_materno`, `ci`,
+  `correo_electronico`, `contrasena` (el modelo sobreescribe `getAuthPassword()`).
+- Nueva tabla **`direcciones`** polimórfica (usuarios, almacenes, empresas,
+  proveedores, proyectos); se quitaron los `direccion` varchar sueltos. Añade `ciudad`.
+- G1: `existencias.cantidad_minima` / `cantidad_maxima` (umbral por almacén).
+
+**v4 — observaciones G2..G10 (todas aplicadas):**
+- G2 soft delete; G3 `situacion` de activos; G4 kits (`activo_padre_id`);
+  G5 `fecha_fabricacion`; G6 `carrete_id` en conteo; G7 `inventario_fisico_id`
+  en movimientos; G8 `productos.imagen`; G9 genealogía de carretes
+  (`carrete_padre_id`); G10 `credenciales` cifradas.
+
+**Pendiente P3 (costos/ventas):** fase futura. Se agregará
+`movimiento_detalles.costo_unitario` + `productos.costo_referencial` sin romper el
+modelo actual. El precio de venta corresponde al módulo de ventas (v2).

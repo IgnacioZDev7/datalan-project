@@ -1,17 +1,24 @@
 // =====================================================================
 //  DATALAN BOLIVIA S.R.L. - Sistema de Inventario del Area Tecnica
-//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v2 (normalizado 3FN)
+//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v4
 //  Regla de oro: el inventario se basa en MOVIMIENTOS, no en stock.
 //                stock = entradas - salidas + devoluciones
 //
-//  CHANGELOG v2 (ver analisis-normalizacion.md):
-//   - F1: eliminado productos.tipo_manejo (se deriva de categoria.tipo_inventario)
-//   - F2: eliminado productos.consumible  (se deriva de categoria.tipo_inventario)
-//   - F3: eliminado productos.marca_id     (la marca se obtiene via modelo)
-//   - F4: eliminado almacen_id de activos y carretes (se obtiene via ubicacion)
-//   - F5: eliminado movimiento_detalles.unidad_id (se usa la del producto)
-//   - F6: movimiento_detalles.estado -> enum estado_item
-//   - F11: agregadas inventarios_fisicos + inventario_fisico_detalles (conteo)
+//  CHANGELOG v4 (observaciones G2..G10):
+//   - G2 : soft delete (deleted_at) en tablas de negocio (recuperacion de
+//          registros eliminados). usuarios NO lleva (usa el booleano activo).
+//   - G3 : activos.situacion (ciclo de vida) + enum situacion_activo,
+//          separada del estado fisico.
+//   - G4 : activos.activo_padre_id (maletines / kits de herramientas).
+//   - G5 : activos.fecha_fabricacion.
+//   - G6 : inventario_fisico_detalles.carrete_id (contar carretes por metros).
+//   - G7 : movimientos.inventario_fisico_id (trazar el ajuste con su conteo).
+//   - G8 : productos.imagen (ruta del archivo en storage, no el binario).
+//   - G9 : carretes.carrete_padre_id (genealogia de cortes de cable).
+//   - G10: activos.credenciales (json, CIFRADO en la app) + alerta password_generica.
+//   Pendiente P3 (costos/ventas) -> fase futura, no se aplica.
+//  CHANGELOG v3: todo en espanol; usuarios; direcciones polimorfica; G1.
+//  CHANGELOG v2: F1..F6, F11 (ver analisis-normalizacion.md).
 // =====================================================================
 
 Project datalan {
@@ -20,7 +27,7 @@ Project datalan {
     Sistema de inventario para el area tecnica de DATALAN Bolivia.
     Inventario hibrido; la naturaleza del producto la define
     categorias.tipo_inventario:
-      - consumible -> existencia por cantidad  (tabla stocks)
+      - consumible -> existencia por cantidad  (tabla existencias)
       - cable      -> existencia por metraje   (tabla carretes)
       - activo     -> unidad individual        (tabla activos)
       - herramienta-> unidad individual asignable (tabla activos + asignaciones)
@@ -33,7 +40,7 @@ Project datalan {
 // =====================================================================
 
 Enum tipo_inventario {
-  consumible   [note: 'se controla por cantidad -> stocks']
+  consumible   [note: 'se controla por cantidad -> existencias']
   cable        [note: 'fibra optica, por metraje -> carretes']
   activo       [note: 'equipo de red, identidad propia -> activos']
   herramienta  [note: 'equipo de precision reutilizable, asignable -> activos']
@@ -48,7 +55,14 @@ Enum estado_activo {
   baja
 }
 
-Enum estado_item {
+Enum situacion_activo {
+  en_almacen
+  asignado
+  instalado
+  de_baja
+}
+
+Enum estado_articulo {
   nuevo
   bueno
   regular
@@ -106,23 +120,27 @@ Enum nivel_alerta {
 //  BLOQUE 1 - SEGURIDAD
 // =====================================================================
 
-Table users {
-  id            bigint       [pk, increment]
-  name          varchar(120)
-  email         varchar(150) [unique, not null]
-  password      varchar(255) [not null]
-  cargo         varchar(100)
-  telefono      varchar(30)
-  activo        boolean      [not null, default: true, note: 'baja/desactivacion de usuario']
-  ultimo_acceso datetime
-  created_at    timestamp
-  updated_at    timestamp
+Table usuarios {
+  id                 bigint       [pk, increment]
+  nombres            varchar(100) [not null, note: 'primer y segundo nombre']
+  apellido_paterno   varchar(60)
+  apellido_materno   varchar(60)
+  ci                 varchar(20)  [unique, note: 'carnet de identidad']
+  correo_electronico varchar(150) [unique, not null]
+  contrasena         varchar(255) [not null, note: 'hash; el modelo Usuario sobreescribe getAuthPassword()']
+  cargo              varchar(100)
+  telefono           varchar(30)
+  activo             boolean      [not null, default: true, note: 'baja/desactivacion de usuario (no usa soft delete)']
+  ultimo_acceso      datetime
+  remember_token     varchar(100) [note: 'columna de framework (recordarme)']
+  created_at         timestamp
+  updated_at         timestamp
 }
 
 Table roles {
   id          bigint       [pk, increment]
   nombre      varchar(80)  [unique, not null]
-  slug        varchar(80)  [unique, not null]
+  slug        varchar(80)  [unique, not null, note: 'identificador estable para el codigo, ej: encargado-almacen']
   descripcion varchar(255)
   created_at  timestamp
   updated_at  timestamp
@@ -138,37 +156,55 @@ Table permisos {
   updated_at timestamp
 }
 
-Table role_user {
-  role_id bigint [ref: > roles.id]
-  user_id bigint [ref: > users.id]
+Table rol_usuario {
+  rol_id     bigint [ref: > roles.id]
+  usuario_id bigint [ref: > usuarios.id]
   Indexes {
-    (role_id, user_id) [pk]
+    (rol_id, usuario_id) [pk]
   }
 }
 
-Table permiso_role {
+Table permiso_rol {
   permiso_id bigint [ref: > permisos.id]
-  role_id    bigint [ref: > roles.id]
+  rol_id     bigint [ref: > roles.id]
   Indexes {
-    (permiso_id, role_id) [pk]
+    (permiso_id, rol_id) [pk]
   }
 }
 
 Table bitacora {
-  id                bigint      [pk, increment]
-  user_id           bigint      [ref: > users.id, note: 'quien ejecuto la accion']
-  accion            varchar(30) [note: 'creado, actualizado, eliminado, login...']
-  modelo            varchar(80) [note: 'tabla/entidad afectada']
-  modelo_id         bigint      [note: 'id del registro afectado']
-  valores_antiguos  json
-  valores_nuevos    json
-  ip                varchar(45)
-  created_at        timestamp
+  id               bigint      [pk, increment]
+  usuario_id       bigint      [ref: > usuarios.id, note: 'quien ejecuto la accion']
+  accion           varchar(30) [note: 'creado, actualizado, eliminado, login...']
+  entidad          varchar(80) [note: 'tabla/entidad afectada']
+  entidad_id       bigint      [note: 'id del registro afectado']
+  valores_antiguos json
+  valores_nuevos   json
+  ip               varchar(45)
+  created_at       timestamp
   Indexes {
-    (modelo, modelo_id)
-    user_id
+    (entidad, entidad_id)
+    usuario_id
   }
   Note: 'Historial de acciones por usuario (auditoria).'
+}
+
+// --- Direcciones (polimorfica: sirve a varias entidades) ---
+Table direcciones {
+  id                 bigint       [pk, increment]
+  direccionable_type varchar(120) [not null, note: 'Usuario, Almacen, Empresa, Proveedor, Proyecto']
+  direccionable_id   bigint       [not null]
+  ciudad             varchar(80)
+  zona               varchar(100)
+  calle              varchar(150)
+  nro                varchar(20)
+  referencia         varchar(255)
+  created_at         timestamp
+  updated_at         timestamp
+  Indexes {
+    (direccionable_type, direccionable_id)
+  }
+  Note: 'Relacion polimorfica de Laravel. Sin FK real sobre direccionable_id (integridad a nivel de aplicacion).'
 }
 
 // =====================================================================
@@ -182,6 +218,7 @@ Table categorias {
   categoria_padre_id bigint       [ref: > categorias.id, note: 'jerarquia opcional']
   descripcion        varchar(255)
   activo             boolean      [not null, default: true]
+  deleted_at         timestamp    [note: 'soft delete (G2)']
   created_at         timestamp
   updated_at         timestamp
 }
@@ -190,6 +227,7 @@ Table marcas {
   id         bigint       [pk, increment]
   nombre     varchar(120) [unique, not null]
   activo     boolean      [not null, default: true]
+  deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
 }
@@ -199,6 +237,7 @@ Table modelos {
   marca_id    bigint       [ref: > marcas.id, not null]
   nombre      varchar(120) [not null]
   descripcion varchar(255)
+  deleted_at  timestamp    [note: 'soft delete (G2)']
   created_at  timestamp
   updated_at  timestamp
   Indexes {
@@ -216,21 +255,23 @@ Table unidades_medida {
 
 Table productos {
   id               bigint       [pk, increment]
-  codigo           varchar(60)  [unique, not null, note: 'codigo interno / QR / codigo de barras']
+  codigo           varchar(60)  [unique, not null, note: 'codigo interno / QR / codigo de barras. UNIQUE debe incluir deleted_at (G2)']
   nombre           varchar(180) [not null]
   categoria_id     bigint       [ref: > categorias.id, not null]
   modelo_id        bigint       [ref: > modelos.id, note: 'la marca se obtiene via modelo (F3)']
   unidad_id        bigint       [ref: > unidades_medida.id, not null]
   retornable       boolean      [not null, default: false]
   especificaciones json         [note: 'atributos variables por categoria (velocidad, capacidad...)']
+  imagen           varchar(255) [note: 'ruta en storage, ej: productos/ont-huawei.jpg (G8)']
   activo           boolean      [not null, default: true]
+  deleted_at       timestamp    [note: 'soft delete (G2)']
   created_at       timestamp
   updated_at       timestamp
   Indexes {
     categoria_id
     modelo_id
   }
-  Note: 'Ficha de catalogo (SKU). La naturaleza la define categoria.tipo_inventario. La existencia fisica vive en stocks / carretes / activos.'
+  Note: 'Ficha de catalogo (SKU). La naturaleza la define categoria.tipo_inventario. La existencia fisica vive en existencias / carretes / activos.'
 }
 
 // =====================================================================
@@ -240,11 +281,11 @@ Table productos {
 Table almacenes {
   id             bigint       [pk, increment]
   nombre         varchar(120) [not null]
-  direccion      varchar(255)
-  responsable_id bigint       [ref: > users.id]
+  responsable_id bigint       [ref: > usuarios.id]
   activo         boolean      [not null, default: true]
   created_at     timestamp
   updated_at     timestamp
+  Note: 'La direccion vive en la tabla direcciones (polimorfica). DATALAN tiene 2 ubicaciones.'
 }
 
 Table ubicaciones {
@@ -260,36 +301,44 @@ Table ubicaciones {
 }
 
 // --- Existencia por cantidad (cache derivado de movimientos, F7) ---
-Table stocks {
+Table existencias {
   id              bigint        [pk, increment]
   producto_id     bigint        [ref: > productos.id, not null]
   almacen_id      bigint        [ref: > almacenes.id, not null]
-  cantidad_actual decimal(12,2) [not null, default: 0]
+  cantidad_actual decimal(12,2) [not null, default: 0, note: 'CACHE derivado de movimientos, no editable a mano']
+  cantidad_minima decimal(12,2) [default: 0, note: 'punto de reorden por almacen (G1/F9)']
+  cantidad_maxima decimal(12,2) [note: 'tope por almacen (G1/F9)']
   updated_at      timestamp
   Indexes {
     (producto_id, almacen_id) [unique]
   }
-  Note: 'Solo productos consumibles. CACHE recalculado por observer desde movimiento_detalles. Nunca se edita a mano.'
+  Note: 'Solo productos consumibles. cantidad_actual se recalcula por observer desde movimiento_detalles. cantidad_minima/maxima si son parametrizables por almacen.'
 }
 
 // --- Equipos activos y herramientas (uno por unidad fisica) ---
 Table activos {
-  id             bigint        [pk, increment]
-  producto_id    bigint        [ref: > productos.id, not null]
-  codigo_interno varchar(60)   [unique, not null, note: 'etiqueta QR / codigo escrito a mano digitalizado']
-  nro_serie      varchar(120)
-  mac            varchar(30)
-  estado         estado_activo [not null, default: 'bueno']
-  ubicacion_id   bigint        [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
-  tecnico_id     bigint        [ref: > tecnicos.id, note: 'custodia actual si es herramienta asignada']
-  fecha_ingreso  date
-  observaciones  varchar(255)  [note: 'ej: bateria dañada']
-  created_at     timestamp
-  updated_at     timestamp
+  id               bigint          [pk, increment]
+  producto_id      bigint          [ref: > productos.id, not null]
+  codigo_interno   varchar(60)     [unique, not null, note: 'etiqueta QR / codigo escrito a mano digitalizado. UNIQUE debe incluir deleted_at (G2)']
+  nro_serie        varchar(120)
+  mac              varchar(30)
+  estado           estado_activo   [not null, default: 'bueno', note: 'condicion FISICA']
+  situacion        situacion_activo [not null, default: 'en_almacen', note: 'ciclo de vida / donde esta (G3)']
+  ubicacion_id     bigint          [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
+  tecnico_id       bigint          [ref: > tecnicos.id, note: 'custodia actual; obligatorio si situacion=asignado']
+  activo_padre_id  bigint          [ref: > activos.id, note: 'maletin/kit contenedor (G4). Prohibir ciclos en la app']
+  fecha_fabricacion date           [note: 'G5']
+  fecha_ingreso    date
+  credenciales     json            [note: 'CIFRADO en la app: {usuario,password,pin,notas} (G10)']
+  observaciones    varchar(255)    [note: 'ej: bateria dañada']
+  deleted_at       timestamp       [note: 'soft delete (G2)']
+  created_at       timestamp
+  updated_at       timestamp
   Indexes {
     producto_id
     nro_serie
     estado
+    situacion
   }
   Note: 'Cubre equipos activos (router, ONT, OLT...) y herramientas (fusionadora, OTDR...). El tipo lo define categoria.tipo_inventario.'
 }
@@ -298,41 +347,45 @@ Table activos {
 Table carretes {
   id                 bigint        [pk, increment]
   producto_id        bigint        [ref: > productos.id, not null]
-  codigo             varchar(60)   [unique, not null]
+  codigo             varchar(60)   [unique, not null, note: 'UNIQUE debe incluir deleted_at (G2)']
   nro_hilos          smallint      [note: '1, 2, 4...']
   tipo_fibra         tipo_fibra
   metraje_inicial    decimal(10,2) [not null]
   metraje_disponible decimal(10,2) [not null, note: 'saldo actual; disminuye con cada salida']
   estado             estado_carrete [not null, default: 'en_almacen']
   ubicacion_id       bigint        [ref: > ubicaciones.id, note: 'el almacen se obtiene via ubicacion (F4)']
+  carrete_padre_id   bigint        [ref: > carretes.id, note: 'bobina de la que se corto este tramo (genealogia, G9)']
   fecha_ingreso      date
   observaciones      varchar(255)
+  deleted_at         timestamp     [note: 'soft delete (G2)']
   created_at         timestamp
   updated_at         timestamp
   Indexes {
     producto_id
     estado
   }
-  Note: 'Carrete de 2000m del que se instalan 250m -> quedan 1750m. El consumo se registra en movimiento_detalles.'
+  Note: 'Carrete de 2000m del que se instalan 250m -> quedan 1750m. Los cortes generan un carrete hijo (carrete_padre_id). El consumo se registra en movimiento_detalles.'
 }
 
 // --- Movimientos (fuente de verdad del inventario) ---
 Table movimientos {
-  id                 bigint         [pk, increment]
-  codigo             varchar(60)    [unique, not null]
-  tipo               tipo_movimiento [not null]
-  fecha              datetime       [not null]
-  almacen_origen_id  bigint         [ref: > almacenes.id, note: 'salidas, traslados, bajas']
-  almacen_destino_id bigint         [ref: > almacenes.id, note: 'entradas, traslados']
-  proveedor_id       bigint         [ref: > proveedores.id, note: 'solo entradas']
-  proyecto_id        bigint         [ref: > proyectos.id, note: 'salidas hacia instalacion']
-  tecnico_id         bigint         [ref: > tecnicos.id, note: 'responsable que recibe/entrega']
-  registrado_por     bigint         [ref: > users.id, not null]
-  autorizado_por     bigint         [ref: > users.id]
-  documento_referencia varchar(120) [note: 'factura, nota, cuaderno...']
-  observaciones      text
-  created_at         timestamp
-  updated_at         timestamp
+  id                   bigint         [pk, increment]
+  codigo               varchar(60)    [unique, not null]
+  tipo                 tipo_movimiento [not null]
+  fecha                datetime       [not null]
+  almacen_origen_id    bigint         [ref: > almacenes.id, note: 'salidas, traslados, bajas']
+  almacen_destino_id   bigint         [ref: > almacenes.id, note: 'entradas, traslados']
+  proveedor_id         bigint         [ref: > proveedores.id, note: 'solo entradas']
+  proyecto_id          bigint         [ref: > proyectos.id, note: 'salidas hacia instalacion']
+  tecnico_id           bigint         [ref: > tecnicos.id, note: 'responsable que recibe/entrega']
+  inventario_fisico_id bigint         [ref: > inventarios_fisicos.id, note: 'si es un ajuste nacido de un conteo (G7)']
+  registrado_por       bigint         [ref: > usuarios.id, not null]
+  autorizado_por       bigint         [ref: > usuarios.id]
+  documento_referencia varchar(120)   [note: 'factura, nota, cuaderno...']
+  observaciones        text
+  deleted_at           timestamp      [note: 'anulacion recuperable; el movimiento nunca desaparece de la historia (G2)']
+  created_at           timestamp
+  updated_at           timestamp
   Indexes {
     tipo
     fecha
@@ -341,14 +394,14 @@ Table movimientos {
 }
 
 Table movimiento_detalles {
-  id            bigint        [pk, increment]
-  movimiento_id bigint        [ref: > movimientos.id, not null]
-  producto_id   bigint        [ref: > productos.id, not null]
-  activo_id     bigint        [ref: > activos.id, note: 'si el producto es tipo activo/herramienta']
-  carrete_id    bigint        [ref: > carretes.id, note: 'si el producto es cable']
-  cantidad      decimal(12,2) [note: 'consumibles / unidades por serie']
-  metraje       decimal(10,2) [note: 'metros consumidos del carrete']
-  estado        estado_item   [note: 'estado del item en este movimiento (F6)']
+  id            bigint         [pk, increment]
+  movimiento_id bigint         [ref: > movimientos.id, not null]
+  producto_id   bigint         [ref: > productos.id, not null]
+  activo_id     bigint         [ref: > activos.id, note: 'si el producto es tipo activo/herramienta']
+  carrete_id    bigint         [ref: > carretes.id, note: 'si el producto es cable']
+  cantidad      decimal(12,2)  [note: 'consumibles / unidades por serie']
+  metraje       decimal(10,2)  [note: 'metros consumidos del carrete']
+  estado        estado_articulo [note: 'estado del item en este movimiento (F6)']
   observaciones varchar(255)
   Indexes {
     movimiento_id
@@ -365,25 +418,26 @@ Table empresas {
   id         bigint       [pk, increment]
   nombre     varchar(180) [not null]
   nit        varchar(30)
-  direccion  varchar(255)
   telefono   varchar(30)
   contacto   varchar(120)
   activo     boolean      [not null, default: true]
+  deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
-  Note: 'Cliente destino de las instalaciones (ej: BTV Oruro, SEGIP Sucre).'
+  Note: 'Cliente destino de las instalaciones (ej: BTV Oruro, SEGIP Sucre). Direccion via tabla direcciones.'
 }
 
 Table proveedores {
   id         bigint       [pk, increment]
   nombre     varchar(180) [not null]
   nit        varchar(30)
-  direccion  varchar(255)
   telefono   varchar(30)
   contacto   varchar(120)
   activo     boolean      [not null, default: true]
+  deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
+  Note: 'Direccion via tabla direcciones.'
 }
 
 Table tecnicos {
@@ -392,10 +446,12 @@ Table tecnicos {
   ci         varchar(30)
   telefono   varchar(30)
   cargo      varchar(80)
-  user_id    bigint       [ref: > users.id, note: 'opcional: si el tecnico ademas usa el sistema']
+  usuario_id bigint       [ref: > usuarios.id, note: 'opcional: si el tecnico ademas usa el sistema']
   activo     boolean      [not null, default: true]
+  deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
+  Note: 'Persona a la que se entrega material / se asignan herramientas. No requiere cuenta de usuario.'
 }
 
 Table proyectos {
@@ -403,14 +459,15 @@ Table proyectos {
   codigo        varchar(60)     [unique, not null]
   nombre        varchar(180)    [not null]
   empresa_id    bigint          [ref: > empresas.id]
-  direccion     varchar(255)    [note: 'direccion de la instalacion']
   tecnico_id    bigint          [ref: > tecnicos.id, note: 'responsable principal']
   estado        estado_proyecto [not null, default: 'planificado']
   fecha_inicio  date
   fecha_fin     date
   observaciones text
+  deleted_at    timestamp       [note: 'soft delete (G2)']
   created_at    timestamp
   updated_at    timestamp
+  Note: 'La direccion de la instalacion vive en la tabla direcciones.'
 }
 
 // --- Asignacion / custodia de herramientas a tecnicos (historial) ---
@@ -423,7 +480,7 @@ Table asignaciones {
   fecha_devolucion datetime
   estado           estado_asignacion [not null, default: 'asignado']
   observaciones    varchar(255)
-  registrado_por   bigint            [ref: > users.id]
+  registrado_por   bigint            [ref: > usuarios.id]
   created_at       timestamp
   updated_at       timestamp
   Indexes {
@@ -442,12 +499,12 @@ Table inventarios_fisicos {
   codigo         varchar(60)   [unique, not null]
   almacen_id     bigint        [ref: > almacenes.id, not null]
   fecha          date          [not null]
-  responsable_id bigint        [ref: > users.id]
+  responsable_id bigint        [ref: > usuarios.id]
   estado         estado_conteo [not null, default: 'en_proceso']
   observaciones  text
   created_at     timestamp
   updated_at     timestamp
-  Note: 'Conteo fisico del almacen. Las diferencias se ajustan con un movimiento tipo ajuste.'
+  Note: 'Conteo fisico del almacen. Las diferencias se ajustan con un movimiento tipo ajuste (movimientos.inventario_fisico_id).'
 }
 
 Table inventario_fisico_detalles {
@@ -455,6 +512,7 @@ Table inventario_fisico_detalles {
   inventario_fisico_id  bigint        [ref: > inventarios_fisicos.id, not null]
   producto_id           bigint        [ref: > productos.id, not null]
   activo_id             bigint        [ref: > activos.id, note: 'si es un item por serie']
+  carrete_id            bigint        [ref: > carretes.id, note: 'si es un carrete; cantidades en METROS (G6)']
   cantidad_sistema      decimal(12,2) [not null, default: 0]
   cantidad_fisica       decimal(12,2) [not null, default: 0]
   observaciones         varchar(255)
@@ -462,16 +520,16 @@ Table inventario_fisico_detalles {
     inventario_fisico_id
     producto_id
   }
-  Note: 'diferencia = cantidad_fisica - cantidad_sistema (NO se almacena, es derivable).'
+  Note: 'diferencia = cantidad_fisica - cantidad_sistema (NO se almacena, es derivable). A lo sumo uno de {activo_id, carrete_id} por renglon.'
 }
 
 // =====================================================================
-//  BLOQUE 6 - ALERTAS (stock minimo, mantenimiento)
+//  BLOQUE 6 - ALERTAS (stock minimo, mantenimiento, credenciales)
 // =====================================================================
 
 Table alertas {
   id          bigint       [pk, increment]
-  tipo        varchar(60)  [note: 'stock_minimo, mantenimiento, devolucion_pendiente']
+  tipo        varchar(60)  [note: 'stock_minimo, mantenimiento, devolucion_pendiente, password_generica (G10)']
   producto_id bigint       [ref: > productos.id]
   activo_id   bigint       [ref: > activos.id]
   mensaje     varchar(255) [not null]
@@ -488,12 +546,13 @@ Table alertas {
 // =====================================================================
 
 TableGroup seguridad {
-  users
+  usuarios
   roles
   permisos
-  role_user
-  permiso_role
+  rol_usuario
+  permiso_rol
   bitacora
+  direcciones
 }
 
 TableGroup catalogo {
@@ -507,7 +566,7 @@ TableGroup catalogo {
 TableGroup inventario {
   almacenes
   ubicaciones
-  stocks
+  existencias
   activos
   carretes
   movimientos
