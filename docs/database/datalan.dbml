@@ -9,9 +9,9 @@
 //     las tablas roles/permisos/rol_usuario/permiso_rol; se configuran en espanol).
 //   - Auditoria -> paquete spatie/laravel-activitylog (se quita la tabla bitacora).
 //   - Nueva tabla activo_historial: linea de tiempo de estado/situacion del activo.
-//   - activos.nro_serie y activos.mac -> UNIQUE (en MySQL admite multiples NULL).
-//   - Nota MySQL: UNIQUE + soft delete NO basta (NULLs distintos). La unicidad de
-//     codigos entre no-borrados se valida a nivel de app (Rule::unique()->whereNull).
+//   - activos.nro_serie y activos.mac -> UNIQUE (NULLs no colisionan en Postgres).
+//   - BD real del proyecto: PostgreSQL. UNIQUE + soft delete se resuelve con
+//     INDICE UNICO PARCIAL nativo:  UNIQUE(codigo) WHERE deleted_at IS NULL.
 //  CHANGELOG v4 (observaciones G2..G10):
 //   - G2 : soft delete (deleted_at) en tablas de negocio (recuperacion de
 //          registros eliminados). usuarios NO lleva (usa el booleano activo).
@@ -30,7 +30,7 @@
 // =====================================================================
 
 Project datalan {
-  database_type: 'MySQL'
+  database_type: 'PostgreSQL'
   Note: '''
     Sistema de inventario para el area tecnica de DATALAN Bolivia.
     Inventario hibrido; la naturaleza del producto la define

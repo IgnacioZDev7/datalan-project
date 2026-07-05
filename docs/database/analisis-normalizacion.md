@@ -141,13 +141,12 @@ y para habilitar los reportes de "faltantes por modelo".
 5. `activos`: si `situacion = asignado`, `tecnico_id` no puede ser nulo (G3).
 6. `activos.activo_padre_id` (kits/maletines) no debe formar ciclos (G4).
 7. `inventario_fisico_detalles`: a lo sumo uno de {`activo_id`, `carrete_id`} (G6).
-8. Índices UNIQUE + soft delete (G2), **corrección MySQL**: en MySQL un
-   `UNIQUE(codigo, deleted_at)` NO garantiza un solo activo por código (cada `NULL`
-   se considera distinto). Por eso la unicidad entre **no-borrados** de
-   `productos.codigo`, `activos.codigo_interno`, `carretes.codigo`,
-   `usuarios.correo_electronico`/`ci` se valida **a nivel de aplicación**
-   (`Rule::unique()->whereNull('deleted_at')`). En PostgreSQL se resolvería con un
-   índice único parcial `UNIQUE(codigo) WHERE deleted_at IS NULL`.
+8. Índices UNIQUE + soft delete (G2). **La BD real del proyecto es PostgreSQL**, así
+   que la unicidad entre **no-borrados** de `productos.codigo`, `activos.codigo_interno`,
+   `carretes.codigo`, `usuarios.correo_electronico`/`ci` se resuelve con un **índice
+   único parcial** nativo: `CREATE UNIQUE INDEX ... (codigo) WHERE deleted_at IS NULL`.
+   (En Laravel: `$table->unique('codigo')->whereNull('deleted_at')` o SQL crudo en la
+   migración.) Además se valida a nivel de app con `Rule::unique()->whereNull('deleted_at')`.
 9. `activos.credenciales` (G10): SIEMPRE cifrado en la app (encrypted cast); nunca
    texto plano.
 10. `direcciones` (polimórfica): sin FK real sobre `direccionable_id`; la integridad
