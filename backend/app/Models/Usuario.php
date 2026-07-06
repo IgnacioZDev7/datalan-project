@@ -31,6 +31,7 @@ class Usuario extends Authenticatable
         'telefono',
         'activo',
         'ultimo_acceso',
+        'direccion_id',
     ];
 
     /**
@@ -77,9 +78,9 @@ class Usuario extends Authenticatable
     // Relaciones
     // ---------------------------------------------------------------
 
-    public function direcciones()
+    public function direccion()
     {
-        return $this->morphMany(Direccion::class, 'direccionable');
+        return $this->belongsTo(Direccion::class);
     }
 
     /** Ficha de tecnico vinculada (si el usuario ademas es tecnico de campo). */

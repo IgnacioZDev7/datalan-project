@@ -14,7 +14,7 @@ class Empresa extends Model
 
     protected $table = 'empresas';
 
-    protected $fillable = ['nombre', 'nit', 'telefono', 'contacto', 'activo'];
+    protected $fillable = ['nombre', 'nit', 'telefono', 'contacto', 'direccion_id', 'activo'];
 
     protected function casts(): array
     {
@@ -31,8 +31,8 @@ class Empresa extends Model
         return $this->hasMany(Proyecto::class);
     }
 
-    public function direcciones()
+    public function direccion()
     {
-        return $this->morphMany(Direccion::class, 'direccionable');
+        return $this->belongsTo(Direccion::class);
     }
 }

@@ -12,8 +12,6 @@ class Direccion extends Model
     protected $table = 'direcciones';
 
     protected $fillable = [
-        'direccionable_type',
-        'direccionable_id',
         'ciudad',
         'zona',
         'calle',
@@ -21,8 +19,38 @@ class Direccion extends Model
         'referencia',
     ];
 
-    public function direccionable()
+    // Cada entidad (usuario, almacen, empresa, proveedor, proyecto) referencia
+    // esta direccion con su columna direccion_id (FK). Relaciones inversas:
+
+    public function usuarios()
     {
-        return $this->morphTo();
+        return $this->hasMany(Usuario::class);
+    }
+
+    public function almacenes()
+    {
+        return $this->hasMany(Almacen::class);
+    }
+
+    public function empresas()
+    {
+        return $this->hasMany(Empresa::class);
+    }
+
+    public function proveedores()
+    {
+        return $this->hasMany(Proveedor::class);
+    }
+
+    public function proyectos()
+    {
+        return $this->hasMany(Proyecto::class);
+    }
+
+    /** Direccion en una linea legible. */
+    public function getCompletaAttribute(): string
+    {
+        return trim(collect([$this->calle, $this->nro, $this->zona, $this->ciudad])
+            ->filter()->implode(', '));
     }
 }

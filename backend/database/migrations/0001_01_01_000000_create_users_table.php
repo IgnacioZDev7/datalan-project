@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('telefono', 30)->nullable();
             $table->boolean('activo')->default(true)->comment('baja/desactivacion de usuario');
             $table->timestamp('ultimo_acceso')->nullable();
+            $table->foreignId('direccion_id')->nullable()->constrained('direcciones')->nullOnDelete();
             $table->rememberToken();
             $table->timestamps();
         });

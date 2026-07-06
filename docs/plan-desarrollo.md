@@ -84,7 +84,8 @@ Una migración por tabla, con timestamps ordenados para respetar las FK. Bloques
 5. `empresas`
 6. `proveedores`
 7. *(Spatie)* roles / permisos / pivotes → vía migraciones del paquete
-8. `direcciones` (polimórfica: `direccionable_type/id`, **sin FK**, índice compuesto)
+8. `direcciones` (tabla de dirección postal; se crea primero, referenciada por
+   `direccion_id` FK real desde usuarios/almacenes/empresas/proveedores/proyectos)
 
 **Bloque B — Catálogo y ubicación:**
 9. `modelos` (FK `marcas`)
@@ -138,8 +139,8 @@ Un modelo por tabla con: `$fillable`/`$guarded`, `$casts`, relaciones y traits.
   - `LogsActivity` (Spatie) en modelos auditables (productos, activos, movimientos…).
 - **Casts:** `especificaciones` → `array` (`jsonb`); `credenciales` → **`encrypted:array`**
   (cifrado obligatorio, G10); fechas → `datetime`; enums → Enum PHP (`enum` de PHP 8.1+).
-- **Relaciones:** `belongsTo`/`hasMany` según FK; `direcciones` → `morphMany`
-  (`direccionable`); self-refs (`categoria_padre`, `activo_padre`, `carrete_padre`).
+- **Relaciones:** `belongsTo`/`hasMany` según FK; `direccion()` `belongsTo` en cada
+  entidad; self-refs (`categoria_padre`, `activo_padre`, `carrete_padre`).
 - **Enums PHP** para `estado_activo`, `situacion_activo`, `tipo_movimiento`, etc.
   (carpeta `app/Enums`).
 

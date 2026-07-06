@@ -11,7 +11,7 @@ class Almacen extends Model
 
     protected $table = 'almacenes';
 
-    protected $fillable = ['nombre', 'responsable_id', 'activo'];
+    protected $fillable = ['nombre', 'responsable_id', 'direccion_id', 'activo'];
 
     protected function casts(): array
     {
@@ -33,8 +33,8 @@ class Almacen extends Model
         return $this->hasMany(Existencia::class);
     }
 
-    public function direcciones()
+    public function direccion()
     {
-        return $this->morphMany(Direccion::class, 'direccionable');
+        return $this->belongsTo(Direccion::class);
     }
 }

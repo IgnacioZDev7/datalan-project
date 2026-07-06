@@ -1,9 +1,14 @@
 // =====================================================================
 //  DATALAN BOLIVIA S.R.L. - Sistema de Inventario del Area Tecnica
-//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v5
+//  Modelo de Base de Datos  (dbdiagram.io / DBML)   -- v6
 //  Regla de oro: el inventario se basa en MOVIMIENTOS, no en stock.
 //                stock = entradas - salidas + devoluciones
 //
+//  CHANGELOG v6 (direcciones con FK real):
+//   - direcciones deja de ser polimorfica: ahora es una tabla de direccion postal
+//     y cada entidad la referencia con FK real (direccion_id) -> usuarios, almacenes,
+//     empresas, proveedores, proyectos. (ubicaciones sigue siendo la posicion
+//     interna del almacen; son conceptos distintos.)
 //  CHANGELOG v5 (ecosistema Spatie + integridad):
 //   - Roles/permisos -> paquete spatie/laravel-permission (se quitan del modelo
 //     las tablas roles/permisos/rol_usuario/permiso_rol; se configuran en espanol).
@@ -140,6 +145,7 @@ Table usuarios {
   telefono           varchar(30)
   activo             boolean      [not null, default: true, note: 'baja/desactivacion de usuario (no usa soft delete)']
   ultimo_acceso      datetime
+  direccion_id       bigint       [ref: > direcciones.id, note: 'FK a la direccion postal']
   remember_token     varchar(100) [note: 'columna de framework (recordarme)']
   created_at         timestamp
   updated_at         timestamp
@@ -155,22 +161,17 @@ Table usuarios {
 //   Tabla del paquete: activity_log (causer polimorfico, subject polimorfico,
 //   properties json con old/new). Reemplaza a la antigua tabla bitacora.
 
-// --- Direcciones (polimorfica: sirve a varias entidades) ---
+// --- Direcciones (tabla de direccion postal, referenciada por FK real) ---
 Table direcciones {
-  id                 bigint       [pk, increment]
-  direccionable_type varchar(120) [not null, note: 'Usuario, Almacen, Empresa, Proveedor, Proyecto']
-  direccionable_id   bigint       [not null]
-  ciudad             varchar(80)
-  zona               varchar(100)
-  calle              varchar(150)
-  nro                varchar(20)
-  referencia         varchar(255)
-  created_at         timestamp
-  updated_at         timestamp
-  Indexes {
-    (direccionable_type, direccionable_id)
-  }
-  Note: 'Relacion polimorfica de Laravel. Sin FK real sobre direccionable_id (integridad a nivel de aplicacion).'
+  id         bigint       [pk, increment]
+  ciudad     varchar(80)
+  zona       varchar(100)
+  calle      varchar(150)
+  nro        varchar(20)
+  referencia varchar(255)
+  created_at timestamp
+  updated_at timestamp
+  Note: 'Direccion postal. Cada entidad la referencia con su columna direccion_id (FK real). Distinta de ubicaciones (posicion interna del almacen).'
 }
 
 // =====================================================================
@@ -248,10 +249,11 @@ Table almacenes {
   id             bigint       [pk, increment]
   nombre         varchar(120) [not null]
   responsable_id bigint       [ref: > usuarios.id]
+  direccion_id   bigint       [ref: > direcciones.id, note: 'direccion postal de la sucursal']
   activo         boolean      [not null, default: true]
   created_at     timestamp
   updated_at     timestamp
-  Note: 'La direccion vive en la tabla direcciones (polimorfica). DATALAN tiene 2 ubicaciones.'
+  Note: 'direccion_id = direccion postal (calle/ciudad). ubicaciones = posicion interna. DATALAN tiene 2 sucursales.'
 }
 
 Table ubicaciones {
@@ -403,11 +405,12 @@ Table empresas {
   nit        varchar(30)
   telefono   varchar(30)
   contacto   varchar(120)
+  direccion_id bigint     [ref: > direcciones.id]
   activo     boolean      [not null, default: true]
   deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
-  Note: 'Cliente destino de las instalaciones (ej: BTV Oruro, SEGIP Sucre). Direccion via tabla direcciones.'
+  Note: 'Cliente destino de las instalaciones (ej: BTV Oruro, SEGIP Sucre).'
 }
 
 Table proveedores {
@@ -416,11 +419,11 @@ Table proveedores {
   nit        varchar(30)
   telefono   varchar(30)
   contacto   varchar(120)
+  direccion_id bigint     [ref: > direcciones.id]
   activo     boolean      [not null, default: true]
   deleted_at timestamp    [note: 'soft delete (G2)']
   created_at timestamp
   updated_at timestamp
-  Note: 'Direccion via tabla direcciones.'
 }
 
 Table tecnicos {
@@ -443,6 +446,7 @@ Table proyectos {
   nombre        varchar(180)    [not null]
   empresa_id    bigint          [ref: > empresas.id]
   tecnico_id    bigint          [ref: > tecnicos.id, note: 'responsable principal']
+  direccion_id  bigint          [ref: > direcciones.id, note: 'direccion de la instalacion']
   estado        estado_proyecto [not null, default: 'planificado']
   fecha_inicio  date
   fecha_fin     date

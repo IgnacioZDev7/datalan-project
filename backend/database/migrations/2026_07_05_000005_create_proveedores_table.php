@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('nit', 30)->nullable();
             $table->string('telefono', 30)->nullable();
             $table->string('contacto', 120)->nullable();
+            $table->foreignId('direccion_id')->nullable()->constrained('direcciones')->nullOnDelete();
             $table->boolean('activo')->default(true);
             $table->softDeletes();
             $table->timestamps();

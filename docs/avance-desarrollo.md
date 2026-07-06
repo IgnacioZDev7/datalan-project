@@ -12,7 +12,7 @@
 | **0** | Preparación del entorno (Sanctum, Spatie, MySQL, CORS) | ✅ Completada |
 | **1** | Migraciones del dominio (38 tablas, 49 FK) | ✅ Completada |
 | **2** | Modelos Eloquent (23 modelos) | ✅ Completada |
-| **3** | Seeders (datos base) | ⏳ Pendiente |
+| **3** | Seeders (datos base) | ✅ Completada |
 | **4+** | Auth API, endpoints por módulo, frontend | ⏳ Pendiente |
 
 **Stack:** Laravel 11 · PHP 8.2 · Sanctum (token) · Spatie Permission + Activity Log ·
@@ -59,7 +59,8 @@ Trabajado en `backend/`.
 `database/migrations/2026_07_05_0000NN_*`:
 
 - **A — Base:** `unidades_medida`, `marcas`, `categorias` (self-FK), `empresas`,
-  `proveedores`, `direcciones` (polimórfica).
+  `proveedores`, `direcciones` (tabla de dirección postal, se crea primero para que
+  las entidades la referencien por FK real `direccion_id`).
 - **B — Catálogo/ubicación:** `modelos`, `productos`, `almacenes`, `ubicaciones`, `tecnicos`.
 - **C — Operación:** `proyectos`.
 - **D — Inventario:** `existencias`, `activos` (self-FK), `activo_historial`,
@@ -106,8 +107,9 @@ cargan (probado con eager-loading real).
 - **Traits:** `SoftDeletes` (11 entidades); `LogsActivity` en las entidades clave
   (en `Activo` se excluye `credenciales` del log de auditoría).
 - **Relaciones especiales:**
-  - Polimórficas: `Direccion::direccionable()` ↔ `morphMany` en Usuario/Almacen/
-    Empresa/Proveedor/Proyecto.
+  - Direcciones por FK real: `Usuario/Almacen/Empresa/Proveedor/Proyecto → belongsTo
+    Direccion` (columna `direccion_id`). `direcciones` ≠ `ubicaciones` (posición
+    interna del almacén).
   - Auto-referencias: `Activo` (`padre`/`contenido`), `Carrete` (`padre`/`cortes`),
     `Categoria` (`padre`/`hijos`).
   - Marca vía modelo: `Producto::marca()` (respeta 3FN).
@@ -115,6 +117,26 @@ cargan (probado con eager-loading real).
   `InventarioFisicoDetalle::diferencia`.
 
 ---
+
+## Fase 3 — Seeders (datos base)
+
+`database/seeders/` — ejecutar con `php artisan migrate:fresh --seed`.
+
+- **RolePermisoSeeder** — 3 roles (`gerente`, `encargado_almacen`, `jefe_tecnico`) y
+  **85 permisos** (CRUD por módulo + especiales: aprobar/anular movimientos, reportes,
+  bitácora). Gerente = todos; encargado = todo menos usuarios/roles; jefe técnico =
+  activos/carretes/movimientos/proyectos/asignaciones + lectura.
+- **UsuarioSeeder** — 3 usuarios reales con su rol. **Credenciales por defecto:**
+  `gerente@datalan.bo`, `almacen@datalan.bo`, `tecnico@datalan.bo` — contraseña
+  `password` (⚠️ cambiar en el primer ingreso).
+- **UnidadMedidaSeeder** — metro, unidad, caja, bolsa, par, rollo, pieza.
+- **CategoriaSeeder** — 21 categorías (4 padres por `tipo_inventario`: Consumibles,
+  Cable de Fibra, Equipos Activos, Herramientas) + subcategorías.
+- **AlmacenSeeder** — 2 almacenes (Central con dirección Av. Camacho 1277, La Paz +
+  Secundario) con su ubicación `GENERAL` por defecto.
+
+Verificado: asignación de roles/permisos correcta (gerente puede `movimientos.aprobar`;
+jefe técnico NO puede `usuarios.crear`).
 
 ## Estado de la base de datos (38 tablas)
 

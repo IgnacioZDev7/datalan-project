@@ -149,8 +149,9 @@ y para habilitar los reportes de "faltantes por modelo".
    migración.) Además se valida a nivel de app con `Rule::unique()->whereNull('deleted_at')`.
 9. `activos.credenciales` (G10): SIEMPRE cifrado en la app (encrypted cast); nunca
    texto plano.
-10. `direcciones` (polimórfica): sin FK real sobre `direccionable_id`; la integridad
-    se valida en la aplicación.
+10. `direcciones` (v6): tabla de dirección postal referenciada por **FK real**
+    (`direccion_id`) desde usuarios, almacenes, empresas, proveedores y proyectos.
+    Es distinta de `ubicaciones` (posición interna del almacén: estante/sección).
 
 ---
 
@@ -162,8 +163,9 @@ y para habilitar los reportes de "faltantes por modelo".
   `role_id`→`rol_id`, `bitacora.modelo`→`entidad`.
 - `usuarios`: `nombres`, `apellido_paterno`, `apellido_materno`, `ci`,
   `correo_electronico`, `contrasena` (el modelo sobreescribe `getAuthPassword()`).
-- Nueva tabla **`direcciones`** polimórfica (usuarios, almacenes, empresas,
-  proveedores, proyectos); se quitaron los `direccion` varchar sueltos. Añade `ciudad`.
+- Nueva tabla **`direcciones`** (dirección postal); se quitaron los `direccion`
+  varchar sueltos. Añade `ciudad`. En **v6** pasó de polimórfica a **FK real**
+  (`direccion_id` en cada entidad).
 - G1: `existencias.cantidad_minima` / `cantidad_maxima` (umbral por almacén).
 
 **v4 — observaciones G2..G10 (todas aplicadas):**

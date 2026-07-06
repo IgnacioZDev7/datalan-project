@@ -19,6 +19,7 @@ class Proyecto extends Model
         'nombre',
         'empresa_id',
         'tecnico_id',
+        'direccion_id',
         'estado',
         'fecha_inicio',
         'fecha_fin',
@@ -53,8 +54,8 @@ class Proyecto extends Model
         return $this->hasMany(Movimiento::class);
     }
 
-    public function direcciones()
+    public function direccion()
     {
-        return $this->morphMany(Direccion::class, 'direccionable');
+        return $this->belongsTo(Direccion::class);
     }
 }

@@ -15,6 +15,8 @@ return new class extends Migration
             $table->foreignId('empresa_id')->nullable()->constrained('empresas')->nullOnDelete();
             $table->foreignId('tecnico_id')->nullable()->constrained('tecnicos')->nullOnDelete()
                 ->comment('responsable principal');
+            $table->foreignId('direccion_id')->nullable()->constrained('direcciones')->nullOnDelete()
+                ->comment('direccion de la instalacion');
             $table->string('estado', 20)->default('planificado')
                 ->comment('planificado|en_progreso|finalizado|cancelado');
             $table->date('fecha_inicio')->nullable();

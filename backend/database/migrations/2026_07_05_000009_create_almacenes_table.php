@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre', 120);
             $table->foreignId('responsable_id')->nullable()->constrained('usuarios')->nullOnDelete();
+            $table->foreignId('direccion_id')->nullable()->constrained('direcciones')->nullOnDelete();
             $table->boolean('activo')->default(true);
             $table->timestamps();
             $table->comment('La direccion vive en la tabla direcciones. DATALAN tiene 2 ubicaciones.');
