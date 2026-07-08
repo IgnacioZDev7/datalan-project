@@ -13,7 +13,14 @@
 | **1** | Migraciones del dominio (38 tablas, 49 FK) | ✅ Completada |
 | **2** | Modelos Eloquent (23 modelos) | ✅ Completada |
 | **3** | Seeders (datos base) | ✅ Completada |
-| **4+** | Auth API, endpoints por módulo, frontend | ⏳ Pendiente |
+| **4** | Autenticación API (Sanctum token) | ✅ Completada |
+| **5** | API por módulos | 🔵 En curso — **Productos ✅ (referencia)** |
+| **6+** | Frontend, reportes, pruebas, despliegue | ⏳ Pendiente |
+
+> **Documentos clave para continuar / delegar:**
+> [`guia-desarrollo-modulos.md`](guia-desarrollo-modulos.md) (patrón obligatorio) ·
+> [`roadmap-fases.md`](roadmap-fases.md) (paquetes de trabajo y qué delegar a opencode).
+> El módulo **Productos** es el ejemplo vivo: se copia para cada módulo nuevo.
 
 **Stack:** Laravel 11 · PHP 8.2 · Sanctum (token) · Spatie Permission + Activity Log ·
 MySQL (desarrollo) / PostgreSQL (final) · Frontend React (TailAdmin) desacoplado.
@@ -137,6 +144,23 @@ cargan (probado con eager-loading real).
 
 Verificado: asignación de roles/permisos correcta (gerente puede `movimientos.aprobar`;
 jefe técnico NO puede `usuarios.crear`).
+
+## Fase 4 — Autenticación API (Sanctum token)
+
+Endpoints bajo `/api/v1` (verificados end-to-end con curl):
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| POST | `/api/v1/login` | Valida `correo_electronico` + `contrasena`, verifica `activo`, registra `ultimo_acceso`, emite token Bearer |
+| POST | `/api/v1/logout` | Revoca el token actual (`auth:sanctum`) |
+| GET | `/api/v1/me` | Usuario autenticado con `roles` y `permisos` (`auth:sanctum`) |
+
+Componentes: `AuthController`, `LoginRequest` (validación), `UsuarioResource` (respuesta).
+Login devuelve `{ token, token_type, usuario }`. El frontend guarda el token y lo envía
+en `Authorization: Bearer <token>`.
+
+> Pendiente menor (Fase 5): estandarizar el "envelope" de respuesta (login no envuelve
+> en `data`, los Resources sí) y agregar Policies por módulo.
 
 ## Estado de la base de datos (38 tablas)
 
