@@ -112,12 +112,17 @@ Delegable en su mayoría; el diseño de KPIs conviene revisarlo en conjunto.
 
 ---
 
-## Ruta crítica
+## Ruta crítica (2 ramas desde feature-modelo-bda)
 
 ```
-Auth ✅ → Productos ✅ (referencia)
-   ├─ opencode ∥ : P5-A, P5-B, P5-C, P5-D  (catálogo/operación)
-   ├─ principal  : P5-E, P5-F (activos/carretes)
-   └─ principal  : P5-H ⭐ Movimientos → P5-I existencias → P5-J conteo
+Auth ✅ → Productos ✅ (referencia)  [base: feature-modelo-bda]
+   ├─ feature/inventario-modulos (opencode, worktree aislado):
+   │     P5-A catálogo, P5-B almacenes, P5-C terceros, P5-D proyectos, P5-G alertas
+   └─ feature/inventario-core (nosotros, carpeta principal):
+         P5-E/F activos+carretes → P5-H ⭐ Movimientos → P5-I existencias → P5-J conteo
+→ merge ambas a feature-modelo-bda (verificar conflictos)
 → Frontend por módulo → Reportes/QR → Tests → Deploy PostgreSQL
 ```
+
+> Con rutas modulares (`routes/modules/*.php`) y archivos por entidad, las dos ramas no
+> comparten archivos → el merge a `feature-modelo-bda` es limpio.

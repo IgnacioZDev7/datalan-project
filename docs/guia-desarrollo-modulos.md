@@ -30,20 +30,29 @@ app/Http/Controllers/Api/EntidadController.php   # index, store, show, update, d
 app/Http/Requests/Entidad/StoreEntidadRequest.php
 app/Http/Requests/Entidad/UpdateEntidadRequest.php
 app/Http/Resources/EntidadResource.php
-routes/api.php                                    # 5 rutas con middleware can:
+routes/modules/entidad.php                        # 5 rutas con middleware can: (ARCHIVO PROPIO)
 ```
 
 El **modelo** ya existe en `app/Models/`. No se crean Policies: la autorización va por
 middleware `can:<permiso>` (Spatie registra cada permiso como Gate automáticamente).
 
+> **Cada módulo tiene su propio archivo de rutas** en `routes/modules/`. `routes/api.php`
+> los carga automáticamente (`glob`), así **nadie edita un archivo compartido** y no hay
+> conflictos de merge trabajando en paralelo.
+
 ---
 
 ## 3. Rutas y permisos
 
-Dentro del grupo `auth:sanctum` en `routes/api.php`, **rutas explícitas** (una por
-acción) para que el permiso quede visible:
+Crear **`routes/modules/<modulo>.php`** (se carga solo; hereda el prefijo `v1` y el
+middleware `auth:sanctum`). Dentro, **rutas explícitas** (una por acción). El archivo
+empieza con sus `use`:
 
 ```php
+<?php
+use App\Http\Controllers\Api\ProductoController;
+use Illuminate\Support\Facades\Route;
+
 Route::get   ('productos',            [ProductoController::class, 'index'])  ->middleware('can:productos.ver');
 Route::post  ('productos',            [ProductoController::class, 'store'])  ->middleware('can:productos.crear');
 Route::get   ('productos/{producto}', [ProductoController::class, 'show'])   ->middleware('can:productos.ver');
@@ -198,7 +207,7 @@ El módulo **Productos** implementa esta guía al 100%. Archivos:
 - `app/Http/Requests/Producto/StoreProductoRequest.php`
 - `app/Http/Requests/Producto/UpdateProductoRequest.php`
 - `app/Http/Resources/ProductoResource.php`
-- rutas de `productos` en `routes/api.php`
+- `routes/modules/productos.php` (su archivo de rutas propio)
 
 **Para implementar un módulo nuevo: copiar Productos, renombrar, ajustar campos,
 validaciones y permiso.** No inventar patrones nuevos.
