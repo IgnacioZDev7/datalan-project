@@ -26,7 +26,8 @@ return new class extends Migration
                 ->comment('maletin/kit contenedor; prohibir ciclos en la app');
             $table->date('fecha_fabricacion')->nullable();
             $table->date('fecha_ingreso')->nullable();
-            $table->json('credenciales')->nullable()->comment('CIFRADO en la app: {usuario,password,pin,notas}');
+            // TEXT (no json): el cast encrypted:array guarda un string cifrado, no JSON.
+            $table->text('credenciales')->nullable()->comment('CIFRADO en la app: {usuario,password,pin,notas}');
             $table->string('observaciones', 255)->nullable();
             $table->softDeletes();
             $table->timestamps();
