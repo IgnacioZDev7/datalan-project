@@ -20,6 +20,9 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Productos from "./pages/Catalogo/Productos";
+import Movimientos from "./pages/Inventario/Movimientos";
+import Kardex from "./pages/Inventario/Kardex";
+import Panel from "./pages/Dashboard/Panel";
 
 export default function App() {
   return (
@@ -33,7 +36,10 @@ export default function App() {
             <Route index path="/" element={<Home />} />
 
             {/* Inventario */}
+            <Route path="/panel" element={<Panel />} />
             <Route path="/productos" element={<Productos />} />
+            <Route path="/movimientos" element={<Movimientos />} />
+            <Route path="/kardex" element={<Kardex />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
