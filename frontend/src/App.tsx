@@ -18,6 +18,8 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Productos from "./pages/Catalogo/Productos";
 
 export default function App() {
   return (
@@ -25,9 +27,13 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
+          {/* Dashboard Layout (protegido: requiere sesión) */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
+
+            {/* Inventario */}
+            <Route path="/productos" element={<Productos />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
@@ -51,6 +57,7 @@ export default function App() {
             {/* Charts */}
             <Route path="/line-chart" element={<LineChart />} />
             <Route path="/bar-chart" element={<BarChart />} />
+            </Route>
           </Route>
 
           {/* Auth Layout */}
