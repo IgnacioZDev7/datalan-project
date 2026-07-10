@@ -33,13 +33,57 @@ const navItems: NavItem[] = [
   },
   {
     icon: <BoxCubeIcon />,
+    name: "Catálogo",
+    subItems: [
+      { name: "Categorías", path: "/categorias", pro: false },
+      { name: "Marcas", path: "/marcas", pro: false },
+      { name: "Modelos", path: "/modelos", pro: false },
+      { name: "Unidades Medida", path: "/unidades-medida", pro: false },
+      { name: "Productos", path: "/productos", pro: false },
+    ],
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Terceros",
+    subItems: [
+      { name: "Empresas", path: "/empresas", pro: false },
+      { name: "Proveedores", path: "/proveedores", pro: false },
+      { name: "Técnicos", path: "/tecnicos", pro: false },
+    ],
+  },
+  {
+    icon: <PageIcon />,
+    name: "Proyectos",
+    path: "/proyectos",
+  },
+  {
+    icon: <BoxCubeIcon />,
     name: "Inventario",
     subItems: [
       { name: "Panel", path: "/panel", pro: false },
-      { name: "Productos", path: "/productos", pro: false },
+      { name: "Almacenes", path: "/almacenes", pro: false },
+      { name: "Ubicaciones", path: "/ubicaciones", pro: false },
+      { name: "Activos", path: "/activos", pro: false },
+      { name: "Carretes", path: "/carretes", pro: false },
+      { name: "Existencias", path: "/existencias", pro: false },
       { name: "Movimientos", path: "/movimientos", pro: false },
       { name: "Kardex", path: "/kardex", pro: false },
     ],
+  },
+  {
+    icon: <ListIcon />,
+    name: "Direcciones",
+    path: "/direcciones",
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "Alertas",
+    path: "/alertas",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Asignaciones",
+    path: "/asignaciones",
   },
   {
     icon: <CalenderIcon />,
