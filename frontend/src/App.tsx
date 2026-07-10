@@ -20,6 +20,22 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Productos from "./pages/Catalogo/Productos";
+import Categorias from "./pages/Catalogo/Categorias";
+import Marcas from "./pages/Catalogo/Marcas";
+import Modelos from "./pages/Catalogo/Modelos";
+import UnidadesMedida from "./pages/Catalogo/UnidadesMedida";
+import Empresas from "./pages/Terceros/Empresas";
+import Proveedores from "./pages/Terceros/Proveedores";
+import Tecnicos from "./pages/Terceros/Tecnicos";
+import Almacenes from "./pages/Inventario/Almacenes";
+import Ubicaciones from "./pages/Inventario/Ubicaciones";
+import Direcciones from "./pages/Direcciones/Direcciones";
+import Proyectos from "./pages/Proyectos/Proyectos";
+import Alertas from "./pages/Alertas/Alertas";
+import Asignaciones from "./pages/Asignaciones/Asignaciones";
+import Activos from "./pages/Inventario/Activos";
+import Carretes from "./pages/Inventario/Carretes";
+import Existencias from "./pages/Inventario/Existencias";
 
 export default function App() {
   return (
@@ -32,8 +48,36 @@ export default function App() {
             <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
 
-            {/* Inventario */}
+            {/* Catálogo */}
             <Route path="/productos" element={<Productos />} />
+            <Route path="/categorias" element={<Categorias />} />
+            <Route path="/marcas" element={<Marcas />} />
+            <Route path="/modelos" element={<Modelos />} />
+            <Route path="/unidades-medida" element={<UnidadesMedida />} />
+
+            {/* Terceros */}
+            <Route path="/empresas" element={<Empresas />} />
+            <Route path="/proveedores" element={<Proveedores />} />
+            <Route path="/tecnicos" element={<Tecnicos />} />
+
+            {/* Proyectos */}
+            <Route path="/proyectos" element={<Proyectos />} />
+
+            {/* Inventario */}
+            <Route path="/almacenes" element={<Almacenes />} />
+            <Route path="/ubicaciones" element={<Ubicaciones />} />
+            <Route path="/activos" element={<Activos />} />
+            <Route path="/carretes" element={<Carretes />} />
+            <Route path="/existencias" element={<Existencias />} />
+
+            {/* Direcciones */}
+            <Route path="/direcciones" element={<Direcciones />} />
+
+            {/* Alertas */}
+            <Route path="/alertas" element={<Alertas />} />
+
+            {/* Asignaciones */}
+            <Route path="/asignaciones" element={<Asignaciones />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
