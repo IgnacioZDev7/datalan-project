@@ -7,9 +7,11 @@ use App\Http\Requests\Almacen\StoreAlmacenRequest;
 use App\Http\Requests\Almacen\UpdateAlmacenRequest;
 use App\Http\Resources\AlmacenResource;
 use App\Models\Almacen;
+use App\Models\Direccion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class AlmacenController extends Controller
 {
@@ -42,11 +44,21 @@ class AlmacenController extends Controller
 
     public function store(StoreAlmacenRequest $request): JsonResponse
     {
-        $almacen = Almacen::create($request->validated());
+        return DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return (new AlmacenResource($almacen->load(['responsable', 'direccion'])))
-            ->response()
-            ->setStatusCode(201);
+            if ($dir && array_filter($dir)) {
+                $data['direccion_id'] = Direccion::create($dir)->id;
+            }
+
+            $almacen = Almacen::create($data);
+
+            return (new AlmacenResource($almacen->load(['responsable', 'direccion'])))
+                ->response()
+                ->setStatusCode(201);
+        });
     }
 
     public function show(Almacen $almacen): AlmacenResource
@@ -56,9 +68,23 @@ class AlmacenController extends Controller
 
     public function update(UpdateAlmacenRequest $request, Almacen $almacen): AlmacenResource
     {
-        $almacen->update($request->validated());
+        return DB::transaction(function () use ($request, $almacen) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return new AlmacenResource($almacen->load(['responsable', 'direccion']));
+            if ($dir && array_filter($dir)) {
+                if ($almacen->direccion_id) {
+                    $almacen->direccion->update($dir);
+                } else {
+                    $data['direccion_id'] = Direccion::create($dir)->id;
+                }
+            }
+
+            $almacen->update($data);
+
+            return new AlmacenResource($almacen->load(['responsable', 'direccion']));
+        });
     }
 
     public function destroy(Almacen $almacen): JsonResponse

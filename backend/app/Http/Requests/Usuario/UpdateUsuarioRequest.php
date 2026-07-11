@@ -27,6 +27,12 @@ class UpdateUsuarioRequest extends FormRequest
             'cargo' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'activo' => ['boolean'],
+            'direccion' => ['nullable', 'array'],
+            'direccion.ciudad' => ['nullable', 'string', 'max:80'],
+            'direccion.zona' => ['nullable', 'string', 'max:100'],
+            'direccion.calle' => ['nullable', 'string', 'max:150'],
+            'direccion.nro' => ['nullable', 'string', 'max:20'],
+            'direccion.referencia' => ['nullable', 'string', 'max:255'],
             'roles' => ['nullable', 'array'],
             'roles.*' => ['string', Rule::exists('roles', 'name')],
         ];

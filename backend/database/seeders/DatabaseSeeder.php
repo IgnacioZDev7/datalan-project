@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             UnidadMedidaSeeder::class,  // unidades de medida
             CategoriaSeeder::class,     // categorias base (por tipo_inventario)
             AlmacenSeeder::class,       // 2 almacenes + ubicacion GENERAL + direcciones
+            DatosRealesSeeder::class,   // marcas, modelos, productos, activos, carretes, etc.
         ]);
     }
 }

@@ -1,10 +1,11 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import LabelModal from "../../components/common/LabelModal";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -17,12 +18,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-// ---- Tipos ----
-interface Opcion {
-  id: number;
-  nombre: string;
-  abreviatura?: string;
-}
 interface Producto {
   id: number;
   codigo: string;
@@ -50,18 +45,14 @@ export default function Productos() {
     useCrud<Producto>("/productos");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [categorias, setCategorias] = useState<Opcion[]>([]);
-  const [unidades, setUnidades] = useState<Opcion[]>([]);
+  const { items: categorias, cargando: cargandoCat } = useLookup("/categorias");
+  const { items: unidades, cargando: cargandoUnd } = useLookup("/unidades-medida");
   const [editando, setEditando] = useState<Producto | null>(null);
   const [form, setForm] = useState<typeof FORM_VACIO>(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  // Carga las opciones de los selects.
-  useEffect(() => {
-    api.get("/categorias", { params: { per_page: 100 } }).then((r) => setCategorias(r.data.data));
-    api.get("/unidades-medida", { params: { per_page: 100 } }).then((r) => setUnidades(r.data.data));
-  }, []);
+  const { isOpen: isOpenLabel, openModal: openLabel, closeModal: closeLabel } = useModal();
+  const [labelItem, setLabelItem] = useState<Producto | null>(null);
 
   function abrirNuevo() {
     setEditando(null);
@@ -116,6 +107,7 @@ export default function Productos() {
       <div className="flex flex-col gap-4 mb-5 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white/90">Productos</h1>
         <div className="flex gap-3">
+          {/* TODO: escaneo — un lector USB "teclea" el código + Enter y ya filtra */}
           <input
             type="text"
             placeholder="Buscar por código o nombre..."
@@ -169,6 +161,9 @@ export default function Productos() {
                       </span>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-right text-theme-sm">
+                      <button onClick={() => { setLabelItem(p); openLabel(); }} className="mr-3 text-brand-500 hover:underline">
+                        Etiqueta
+                      </button>
                       {puede("productos.editar") && (
                         <button onClick={() => abrirEditar(p)} className="mr-3 text-brand-500 hover:underline">
                           Editar
@@ -238,7 +233,7 @@ export default function Productos() {
                 onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}
               >
                 <option value="">Seleccione...</option>
-                {categorias.map((c) => (
+                {cargandoCat ? (<option value="" disabled>Cargando...</option>) : categorias.map((c) => (
                   <option key={c.id} value={c.id}>{c.nombre}</option>
                 ))}
               </select>
@@ -252,7 +247,7 @@ export default function Productos() {
                 onChange={(e) => setForm({ ...form, unidad_id: e.target.value })}
               >
                 <option value="">Seleccione...</option>
-                {unidades.map((u) => (
+                {cargandoUnd ? (<option value="" disabled>Cargando...</option>) : unidades.map((u) => (
                   <option key={u.id} value={u.id}>{u.nombre} ({u.abreviatura})</option>
                 ))}
               </select>
@@ -275,6 +270,16 @@ export default function Productos() {
           </div>
         </form>
       </Modal>
+
+      {/* Modal etiqueta */}
+      {labelItem && (
+        <LabelModal
+          isOpen={isOpenLabel}
+          onClose={closeLabel}
+          codigo={labelItem.codigo}
+          nombre={labelItem.nombre}
+        />
+      )}
     </>
   );
 }

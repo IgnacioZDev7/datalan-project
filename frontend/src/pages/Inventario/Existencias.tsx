@@ -1,5 +1,8 @@
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useAuth } from "../../context/AuthContext";
+import Button from "../../components/ui/button/Button";
+import { downloadReport } from "../../utils/downloadReport";
 import {
   Table,
   TableBody,
@@ -20,6 +23,7 @@ interface Existencia {
 }
 
 export default function Existencias() {
+  const { puede } = useAuth();
   const { items, meta, cargando, filtros, filtrar, irAPagina } =
     useCrud<Existencia>("/existencias");
 
@@ -31,6 +35,10 @@ export default function Existencias() {
         <div className="flex gap-3">
           <input type="text" placeholder="Buscar producto o almacén..." className="h-11 w-full sm:w-64 rounded-lg border border-gray-300 bg-transparent px-4 text-sm dark:border-gray-700 dark:text-white/90"
             value={(filtros.buscar as string) ?? ""} onChange={(e) => filtrar({ buscar: e.target.value })} />
+          {puede("reportes.exportar") && <>
+            <Button size="sm" variant="outline" onClick={() => downloadReport("/reportes/existencias/excel", "existencias.xlsx", { almacen_id: filtros.almacen_id as string })}>Excel</Button>
+            <Button size="sm" variant="outline" onClick={() => downloadReport("/reportes/existencias/pdf", "existencias.pdf", { almacen_id: filtros.almacen_id as string })}>PDF</Button>
+          </>}
         </div>
       </div>
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">

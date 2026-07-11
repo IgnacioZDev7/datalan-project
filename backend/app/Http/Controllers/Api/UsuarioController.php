@@ -6,17 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Usuario\StoreUsuarioRequest;
 use App\Http\Requests\Usuario\UpdateUsuarioRequest;
 use App\Http\Resources\UsuarioResource;
+use App\Models\Direccion;
 use App\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UsuarioController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Usuario::query()->with('roles');
+        $query = Usuario::query()->with(['roles', 'direccion']);
 
         if ($buscar = $request->query('buscar')) {
             $query->where(function ($q) use ($buscar) {
@@ -34,40 +36,59 @@ class UsuarioController extends Controller
 
     public function store(StoreUsuarioRequest $request): JsonResponse
     {
-        $data = $request->validated();
-        $roles = $data['roles'] ?? [];
-        unset($data['roles']);
+        return DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $roles = $data['roles'] ?? [];
+            unset($data['roles']);
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        $usuario = Usuario::create($data);
-        $usuario->syncRoles($roles);
+            if ($dir && array_filter($dir)) {
+                $data['direccion_id'] = Direccion::create($dir)->id;
+            }
 
-        return (new UsuarioResource($usuario->load('roles')))->response()->setStatusCode(201);
+            $usuario = Usuario::create($data);
+            $usuario->syncRoles($roles);
+
+            return (new UsuarioResource($usuario->load(['roles', 'direccion'])))->response()->setStatusCode(201);
+        });
     }
 
     public function show(Usuario $usuario): UsuarioResource
     {
-        return new UsuarioResource($usuario->load('roles'));
+        return new UsuarioResource($usuario->load(['roles', 'direccion']));
     }
 
     public function update(UpdateUsuarioRequest $request, Usuario $usuario): UsuarioResource
     {
-        $data = $request->validated();
+        return DB::transaction(function () use ($request, $usuario) {
+            $data = $request->validated();
 
-        // La contraseña solo se cambia si viene (el cast 'hashed' la hashea sola).
-        if (empty($data['contrasena'])) {
-            unset($data['contrasena']);
-        }
+            if (empty($data['contrasena'])) {
+                unset($data['contrasena']);
+            }
 
-        $roles = $data['roles'] ?? null;
-        unset($data['roles']);
+            $roles = $data['roles'] ?? null;
+            unset($data['roles']);
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        $usuario->update($data);
+            if ($dir && array_filter($dir)) {
+                if ($usuario->direccion_id) {
+                    $usuario->direccion->update($dir);
+                } else {
+                    $data['direccion_id'] = Direccion::create($dir)->id;
+                }
+            }
 
-        if (! is_null($roles)) {
-            $usuario->syncRoles($roles);
-        }
+            $usuario->update($data);
 
-        return new UsuarioResource($usuario->load('roles'));
+            if (! is_null($roles)) {
+                $usuario->syncRoles($roles);
+            }
+
+            return new UsuarioResource($usuario->load(['roles', 'direccion']));
+        });
     }
 
     /**

@@ -1,14 +1,14 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import CamposDireccion from "../../components/form/CamposDireccion";
 import {
   Table,
   TableBody,
@@ -17,37 +17,43 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface OpcionCiudad { id: number; ciudad: string; }
-interface Almacen { id: number; nombre: string; responsable_id: number | null; direccion_id: number | null; activo: boolean; }
+interface Almacen {
+  id: number; nombre: string; responsable_id: number | null; direccion_id: number | null; activo: boolean;
+  direccion?: { ciudad: string; zona: string; calle: string; nro: string; referencia: string };
+}
 
-const FORM_VACIO = { nombre: "", responsable_id: "", direccion_id: "", activo: true };
+const DIR_VACIO = { ciudad: "", zona: "", calle: "", nro: "", referencia: "" };
+const FORM_VACIO = { nombre: "", responsable_id: "", direccion: DIR_VACIO, activo: true };
 
 export default function Almacenes() {
   const { puede } = useAuth();
   const { items, meta, cargando, filtros, filtrar, irAPagina, crear, actualizar, eliminar } =
     useCrud<Almacen>("/almacenes");
   const { isOpen, openModal, closeModal } = useModal();
-  const [direcciones, setDirecciones] = useState<OpcionCiudad[]>([]);
   const [editando, setEditando] = useState<Almacen | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
 
-  useEffect(() => { api.get("/direcciones", { params: { per_page: 100 } }).then((r) => setDirecciones(r.data.data)); }, []);
-
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
-  function abrirEditar(p: Almacen) { setEditando(p); setForm({ nombre: p.nombre, responsable_id: "", direccion_id: p.direccion_id ? String(p.direccion_id) : "", activo: p.activo }); setErrores({}); openModal(); }
+  function abrirEditar(p: Almacen) {
+    setEditando(p);
+    setForm({ nombre: p.nombre, responsable_id: "", direccion: p.direccion ?? DIR_VACIO, activo: p.activo });
+    setErrores({}); openModal();
+  }
 
   async function guardar(e: FormEvent) {
     e.preventDefault(); setGuardando(true); setErrores({});
     try {
-      const datos = { ...form, direccion_id: form.direccion_id ? Number(form.direccion_id) : null };
-      if (editando) await actualizar(editando.id, datos); else await crear(datos); closeModal();
+      const { direccion, ...datos } = form;
+      const payload = { ...datos, direccion: direccion.ciudad || direccion.zona || direccion.calle || direccion.nro ? direccion : undefined };
+      if (editando) await actualizar(editando.id, payload); else await crear(payload);
+      closeModal();
     } catch (err) { const axErr = err as AxiosError<{ errors?: Record<string, string[]> }>; setErrores(axErr.response?.data?.errors ?? {}); }
     finally { setGuardando(false); }
   }
 
-  async function borrar(p: Almacen) { if (!confirm(`¿Eliminar "${p.nombre}"?`)) return; await eliminar(p.id); }
+  async function borrar(p: Almacen) { if (!confirm(`Eliminar "${p.nombre}"?`)) return; await eliminar(p.id); }
 
   return (
     <>
@@ -91,11 +97,7 @@ export default function Almacenes() {
         <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{editando ? "Editar almacén" : "Nuevo almacén"}</h2>
         <form onSubmit={guardar} className="space-y-4">
           <div><Label>Nombre *</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />{errores.nombre && <p className="mt-1 text-xs text-error-500">{errores.nombre[0]}</p>}</div>
-          <div><Label>Dirección</Label>
-            <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.direccion_id} onChange={(e) => setForm({ ...form, direccion_id: e.target.value })}>
-              <option value="">Seleccione...</option>{direcciones.map((d) => (<option key={d.id} value={d.id}>{d.ciudad}</option>))}
-            </select>
-          </div>
+          <CamposDireccion value={form.direccion} onChange={(field, val) => setForm({ ...form, direccion: { ...form.direccion, [field]: val } })} errores={errores} />
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} /> Activo</label>
           <div className="flex justify-end gap-3 pt-2">
             <Button size="sm" variant="outline" onClick={closeModal}>Cancelar</Button>

@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
@@ -17,7 +17,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Ubicacion { id: number; almacen_id: number; codigo: string; descripcion: string | null; almacen?: { nombre: string }; }
 
 const FORM_VACIO = { almacen_id: "", codigo: "", descripcion: "" };
@@ -27,13 +26,11 @@ export default function Ubicaciones() {
   const { items, meta, cargando, filtros, filtrar, irAPagina, crear, actualizar, eliminar } =
     useCrud<Ubicacion>("/ubicaciones");
   const { isOpen, openModal, closeModal } = useModal();
-  const [almacenes, setAlmacenes] = useState<Opcion[]>([]);
+  const { items: almacenes, cargando: cargandoAlm } = useLookup("/almacenes");
   const [editando, setEditando] = useState<Ubicacion | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => { api.get("/almacenes", { params: { per_page: 100 } }).then((r) => setAlmacenes(r.data.data)); }, []);
 
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
   function abrirEditar(p: Ubicacion) { setEditando(p); setForm({ almacen_id: String(p.almacen_id), codigo: p.codigo, descripcion: p.descripcion ?? "" }); setErrores({}); openModal(); }
@@ -92,8 +89,8 @@ export default function Ubicaciones() {
         <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-white/90">{editando ? "Editar ubicación" : "Nueva ubicación"}</h2>
         <form onSubmit={guardar} className="space-y-4">
           <div><Label>Almacén *</Label>
-            <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.almacen_id} onChange={(e) => setForm({ ...form, almacen_id: e.target.value })}>
-              <option value="">Seleccione...</option>{almacenes.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
+              <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.almacen_id} onChange={(e) => setForm({ ...form, almacen_id: e.target.value })}>
+              <option value="">Seleccione...</option>{cargandoAlm ? (<option value="" disabled>Cargando...</option>) : almacenes.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
             </select>
             {errores.almacen_id && <p className="mt-1 text-xs text-error-500">{errores.almacen_id[0]}</p>}
           </div>

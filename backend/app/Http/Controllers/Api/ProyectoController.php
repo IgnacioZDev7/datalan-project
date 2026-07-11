@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Proyecto\StoreProyectoRequest;
 use App\Http\Requests\Proyecto\UpdateProyectoRequest;
 use App\Http\Resources\ProyectoResource;
+use App\Models\Direccion;
 use App\Models\Proyecto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class ProyectoController extends Controller
 {
@@ -47,11 +49,21 @@ class ProyectoController extends Controller
 
     public function store(StoreProyectoRequest $request): JsonResponse
     {
-        $proyecto = Proyecto::create($request->validated());
+        return DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return (new ProyectoResource($proyecto->load(['empresa', 'tecnico', 'direccion'])))
-            ->response()
-            ->setStatusCode(201);
+            if ($dir && array_filter($dir)) {
+                $data['direccion_id'] = Direccion::create($dir)->id;
+            }
+
+            $proyecto = Proyecto::create($data);
+
+            return (new ProyectoResource($proyecto->load(['empresa', 'tecnico', 'direccion'])))
+                ->response()
+                ->setStatusCode(201);
+        });
     }
 
     public function show(Proyecto $proyecto): ProyectoResource
@@ -61,9 +73,23 @@ class ProyectoController extends Controller
 
     public function update(UpdateProyectoRequest $request, Proyecto $proyecto): ProyectoResource
     {
-        $proyecto->update($request->validated());
+        return DB::transaction(function () use ($request, $proyecto) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return new ProyectoResource($proyecto->load(['empresa', 'tecnico', 'direccion']));
+            if ($dir && array_filter($dir)) {
+                if ($proyecto->direccion_id) {
+                    $proyecto->direccion->update($dir);
+                } else {
+                    $data['direccion_id'] = Direccion::create($dir)->id;
+                }
+            }
+
+            $proyecto->update($data);
+
+            return new ProyectoResource($proyecto->load(['empresa', 'tecnico', 'direccion']));
+        });
     }
 
     public function destroy(Proyecto $proyecto): JsonResponse

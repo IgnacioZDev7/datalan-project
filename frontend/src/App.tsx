@@ -23,9 +23,10 @@ import Carretes from "./pages/Inventario/Carretes";
 import Existencias from "./pages/Inventario/Existencias";
 import Movimientos from "./pages/Inventario/Movimientos";
 import Kardex from "./pages/Inventario/Kardex";
-import Direcciones from "./pages/Direcciones/Direcciones";
 import Alertas from "./pages/Alertas/Alertas";
 import Asignaciones from "./pages/Asignaciones/Asignaciones";
+import Usuarios from "./pages/Usuarios/Usuarios";
+import InventariosFisicos from "./pages/Inventario/InventariosFisicos";
 
 export default function App() {
   return (
@@ -64,10 +65,15 @@ export default function App() {
               <Route path="/carretes" element={<Carretes />} />
               <Route path="/existencias" element={<Existencias />} />
 
-              {/* Direcciones / Alertas / Asignaciones */}
-              <Route path="/direcciones" element={<Direcciones />} />
+              {/* Alertas / Asignaciones */}
               <Route path="/alertas" element={<Alertas />} />
               <Route path="/asignaciones" element={<Asignaciones />} />
+
+              {/* Administración */}
+              <Route path="/usuarios" element={<Usuarios />} />
+
+              {/* Inventario físico */}
+              <Route path="/inventarios-fisicos" element={<InventariosFisicos />} />
             </Route>
           </Route>
 

@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
@@ -17,7 +17,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Carrete {
   id: number;
   codigo: string;
@@ -37,17 +36,12 @@ export default function Carretes() {
     useCrud<Carrete>("/carretes");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [activos, setActivos] = useState<Opcion[]>([]);
-  const [categorias, setCategorias] = useState<Opcion[]>([]);
+  const { items: activos, cargando: cargandoAct } = useLookup("/activos");
+  const { items: categorias, cargando: cargandoCat } = useLookup("/categorias");
   const [editando, setEditando] = useState<Carrete | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/activos", { params: { per_page: 100 } }).then((r) => setActivos(r.data.data));
-    api.get("/categorias", { params: { per_page: 100 } }).then((r) => setCategorias(r.data.data));
-  }, []);
 
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
   function abrirEditar(e: Carrete) {
@@ -134,13 +128,13 @@ export default function Carretes() {
             <div><Label>Activo</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.activo_id} onChange={(e) => setForm({ ...form, activo_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {activos.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
+                {cargandoAct ? (<option value="" disabled>Cargando...</option>) : activos.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
               </select>
             </div>
             <div><Label>Categoría</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {categorias.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
+                {cargandoCat ? (<option value="" disabled>Cargando...</option>) : categorias.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
               </select>
             </div>
           </div>
