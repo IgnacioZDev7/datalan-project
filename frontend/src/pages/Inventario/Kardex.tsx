@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
+import { useLookup } from "../../hooks/useLookup";
+import { useAuth } from "../../context/AuthContext";
+import Button from "../../components/ui/button/Button";
+import { downloadReport } from "../../utils/downloadReport";
 import api from "../../services/api";
 import {
   Table,
@@ -9,7 +13,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; codigo: string; }
 interface LineaKardex {
   fecha: string;
   movimiento: string;
@@ -25,14 +28,11 @@ interface Reporte {
 }
 
 export default function Kardex() {
-  const [productos, setProductos] = useState<Opcion[]>([]);
+  const { puede } = useAuth();
+  const { items: productos, cargando: cargandoProd } = useLookup("/productos");
   const [productoId, setProductoId] = useState("");
   const [reporte, setReporte] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(false);
-
-  useEffect(() => {
-    api.get("/productos", { params: { per_page: 300 } }).then((r) => setProductos(r.data.data));
-  }, []);
 
   useEffect(() => {
     if (!productoId) {
@@ -58,7 +58,7 @@ export default function Kardex() {
           onChange={(e) => setProductoId(e.target.value)}
         >
           <option value="">Selecciona un producto...</option>
-          {productos.map((p) => (
+          {cargandoProd ? (<option value="" disabled>Cargando...</option>) : productos.map((p) => (
             <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>
           ))}
         </select>
@@ -78,6 +78,9 @@ export default function Kardex() {
             <div className="text-right">
               <p className="text-sm text-gray-500">Saldo final</p>
               <p className="text-2xl font-bold text-brand-600">{reporte.saldo_final}</p>
+              {puede("reportes.exportar") && (
+                <Button size="sm" variant="outline" className="mt-2" onClick={() => downloadReport(`/reportes/kardex/${productoId}/pdf`, `kardex-${reporte.producto.codigo}.pdf`)}>Exportar PDF</Button>
+              )}
             </div>
           </div>
 

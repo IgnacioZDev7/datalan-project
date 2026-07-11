@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
@@ -17,7 +17,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Modelo {
   id: number;
   marca_id: number;
@@ -33,15 +32,11 @@ export default function Modelos() {
     useCrud<Modelo>("/modelos");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [marcas, setMarcas] = useState<Opcion[]>([]);
+  const { items: marcas, cargando: cargandoMarcas } = useLookup("/marcas");
   const [editando, setEditando] = useState<Modelo | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/marcas", { params: { per_page: 100 } }).then((r) => setMarcas(r.data.data));
-  }, []);
 
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
 
@@ -127,7 +122,7 @@ export default function Modelos() {
             <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               value={form.marca_id} onChange={(e) => setForm({ ...form, marca_id: e.target.value })}>
               <option value="">Seleccione...</option>
-              {marcas.map((m) => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
+              {cargandoMarcas ? (<option value="" disabled>Cargando...</option>) : marcas.map((m) => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
             </select>
             {errores.marca_id && <p className="mt-1 text-xs text-error-500">{errores.marca_id[0]}</p>}
           </div>

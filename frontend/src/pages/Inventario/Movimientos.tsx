@@ -1,10 +1,12 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import { downloadReport } from "../../utils/downloadReport";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -17,11 +19,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion {
-  id: number;
-  nombre?: string;
-  codigo?: string;
-}
 interface Movimiento {
   id: number;
   codigo: string;
@@ -47,10 +44,10 @@ export default function Movimientos() {
     useCrud<Movimiento>("/movimientos");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [almacenes, setAlmacenes] = useState<Opcion[]>([]);
-  const [productos, setProductos] = useState<Opcion[]>([]);
-  const [proveedores, setProveedores] = useState<Opcion[]>([]);
-  const [proyectos, setProyectos] = useState<Opcion[]>([]);
+  const { items: almacenes, cargando: cargandoAlm } = useLookup("/almacenes");
+  const { items: productos, cargando: cargandoProd } = useLookup("/productos");
+  const { items: proveedores, cargando: cargandoProv } = useLookup("/proveedores");
+  const { items: proyectos, cargando: cargandoProy } = useLookup("/proyectos");
 
   const [form, setForm] = useState({
     codigo: "",
@@ -66,13 +63,6 @@ export default function Movimientos() {
   const [lineas, setLineas] = useState<Linea[]>([{ ...LINEA_VACIA }]);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/almacenes", { params: { per_page: 100 } }).then((r) => setAlmacenes(r.data.data));
-    api.get("/productos", { params: { per_page: 200 } }).then((r) => setProductos(r.data.data));
-    api.get("/proveedores", { params: { per_page: 100 } }).then((r) => setProveedores(r.data.data));
-    api.get("/proyectos", { params: { per_page: 100 } }).then((r) => setProyectos(r.data.data));
-  }, []);
 
   const requiereOrigen = ["salida", "baja", "traslado"].includes(form.tipo);
   const requiereDestino = ["entrada", "devolucion", "traslado", "ajuste"].includes(form.tipo);
@@ -145,6 +135,10 @@ export default function Movimientos() {
             {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           {puede("movimientos.crear") && <Button size="sm" onClick={abrirNuevo}>+ Nuevo movimiento</Button>}
+          {puede("reportes.exportar") && <>
+            <Button size="sm" variant="outline" onClick={() => downloadReport("/reportes/movimientos/excel", "movimientos.xlsx", { tipo: filtros.tipo as string, desde: filtros.desde as string, hasta: filtros.hasta as string })}>Excel</Button>
+            <Button size="sm" variant="outline" onClick={() => downloadReport("/reportes/movimientos/pdf", "movimientos.pdf", { tipo: filtros.tipo as string, desde: filtros.desde as string, hasta: filtros.hasta as string })}>PDF</Button>
+          </>}
         </div>
       </div>
 
@@ -223,7 +217,7 @@ export default function Movimientos() {
                 <Label>Almacén origen *</Label>
                 <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.almacen_origen_id} onChange={(e) => setForm({ ...form, almacen_origen_id: e.target.value })}>
                   <option value="">Seleccione...</option>
-                  {almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  {cargandoAlm ? (<option value="" disabled>Cargando...</option>) : almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
                 {errores.almacen_origen_id && <p className="mt-1 text-xs text-error-500">{errores.almacen_origen_id[0]}</p>}
               </div>
@@ -233,7 +227,7 @@ export default function Movimientos() {
                 <Label>Almacén destino *</Label>
                 <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.almacen_destino_id} onChange={(e) => setForm({ ...form, almacen_destino_id: e.target.value })}>
                   <option value="">Seleccione...</option>
-                  {almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  {cargandoAlm ? (<option value="" disabled>Cargando...</option>) : almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
                 {errores.almacen_destino_id && <p className="mt-1 text-xs text-error-500">{errores.almacen_destino_id[0]}</p>}
               </div>
@@ -243,7 +237,7 @@ export default function Movimientos() {
                 <Label>Proveedor</Label>
                 <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.proveedor_id} onChange={(e) => setForm({ ...form, proveedor_id: e.target.value })}>
                   <option value="">-</option>
-                  {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  {cargandoProv ? (<option value="" disabled>Cargando...</option>) : proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
               </div>
             )}
@@ -252,7 +246,7 @@ export default function Movimientos() {
                 <Label>Proyecto</Label>
                 <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.proyecto_id} onChange={(e) => setForm({ ...form, proyecto_id: e.target.value })}>
                   <option value="">-</option>
-                  {proyectos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  {cargandoProy ? (<option value="" disabled>Cargando...</option>) : proyectos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
               </div>
             )}
@@ -268,9 +262,9 @@ export default function Movimientos() {
             <div className="space-y-2">
               {lineas.map((l, i) => (
                 <div key={i} className="grid items-center grid-cols-12 gap-2">
-                  <select className="h-10 col-span-5 rounded-lg border border-gray-300 bg-transparent px-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={l.producto_id} onChange={(e) => setLinea(i, "producto_id", e.target.value)}>
-                    <option value="">Producto...</option>
-                    {productos.map((p) => <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>)}
+                    <select className="h-10 col-span-5 rounded-lg border border-gray-300 bg-transparent px-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={l.producto_id} onChange={(e) => setLinea(i, "producto_id", e.target.value)}>
+                      <option value="">Producto...</option>
+                      {cargandoProd ? (<option value="" disabled>Cargando...</option>) : productos.map((p) => <option key={p.id} value={p.id}>{p.codigo} - {p.nombre}</option>)}
                   </select>
                   <input placeholder="Cantidad" type="number" step="0.01" className="h-10 col-span-2 rounded-lg border border-gray-300 bg-transparent px-2 text-sm dark:border-gray-700 dark:text-white/90" value={l.cantidad} onChange={(e) => setLinea(i, "cantidad", e.target.value)} />
                   <input placeholder="Metraje" type="number" step="0.01" className="h-10 col-span-2 rounded-lg border border-gray-300 bg-transparent px-2 text-sm dark:border-gray-700 dark:text-white/90" value={l.metraje} onChange={(e) => setLinea(i, "metraje", e.target.value)} />

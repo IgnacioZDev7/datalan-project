@@ -18,6 +18,7 @@ class InventarioFisicoResource extends JsonResource
             'estado' => $this->estado,
             'observaciones' => $this->observaciones,
             'created_at' => $this->created_at,
+            'detalles_count' => $this->detalles_count ?? $this->detalles?->count() ?? 0,
             'detalles' => InventarioFisicoDetalleResource::collection($this->whenLoaded('detalles')),
         ];
     }

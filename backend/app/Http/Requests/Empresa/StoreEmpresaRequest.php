@@ -20,8 +20,13 @@ class StoreEmpresaRequest extends FormRequest
             'nit' => ['nullable', 'string', 'max:60'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'contacto' => ['nullable', 'string', 'max:180'],
-            'direccion_id' => ['nullable', 'integer', 'exists:direcciones,id'],
             'activo' => ['boolean'],
+            'direccion' => ['nullable', 'array'],
+            'direccion.ciudad' => ['nullable', 'string', 'max:80'],
+            'direccion.zona' => ['nullable', 'string', 'max:100'],
+            'direccion.calle' => ['nullable', 'string', 'max:150'],
+            'direccion.nro' => ['nullable', 'string', 'max:20'],
+            'direccion.referencia' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -30,7 +35,6 @@ class StoreEmpresaRequest extends FormRequest
         return [
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.unique' => 'Ya existe una empresa con ese nombre.',
-            'direccion_id.exists' => 'La dirección seleccionada no existe.',
         ];
     }
 }

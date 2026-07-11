@@ -1,10 +1,11 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import LabelModal from "../../components/common/LabelModal";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -17,7 +18,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Activo {
   id: number;
   codigo: string;
@@ -42,21 +42,16 @@ export default function Activos() {
     useCrud<Activo>("/activos");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [categorias, setCategorias] = useState<Opcion[]>([]);
-  const [modelos, setModelos] = useState<Opcion[]>([]);
-  const [almacenes, setAlmacenes] = useState<Opcion[]>([]);
-  const [ubicaciones, setUbicaciones] = useState<Opcion[]>([]);
+  const { items: categorias, cargando: cargandoCat } = useLookup("/categorias");
+  const { items: modelos, cargando: cargandoMod } = useLookup("/modelos");
+  const { items: almacenes, cargando: cargandoAlm } = useLookup("/almacenes");
+  const { items: ubicaciones, cargando: cargandoUbi } = useLookup("/ubicaciones");
   const [editando, setEditando] = useState<Activo | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/categorias", { params: { per_page: 100 } }).then((r) => setCategorias(r.data.data));
-    api.get("/modelos", { params: { per_page: 100 } }).then((r) => setModelos(r.data.data));
-    api.get("/almacenes", { params: { per_page: 100 } }).then((r) => setAlmacenes(r.data.data));
-    api.get("/ubicaciones", { params: { per_page: 100 } }).then((r) => setUbicaciones(r.data.data));
-  }, []);
+  const { isOpen: isOpenLabel, openModal: openLabel, closeModal: closeLabel } = useModal();
+  const [labelItem, setLabelItem] = useState<Activo | null>(null);
 
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
   function abrirEditar(e: Activo) {
@@ -96,6 +91,7 @@ export default function Activos() {
       <div className="flex flex-col gap-4 mb-5 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white/90">Activos</h1>
         <div className="flex gap-3">
+          {/* TODO: escaneo — un lector USB "teclea" el código + Enter y ya filtra */}
           <input type="text" placeholder="Buscar..." className="h-11 w-full sm:w-64 rounded-lg border border-gray-300 bg-transparent px-4 text-sm dark:border-gray-700 dark:text-white/90"
             value={(filtros.buscar as string) ?? ""} onChange={(e) => filtrar({ buscar: e.target.value })} />
           {puede("activos.crear") && <Button size="sm" onClick={abrirNuevo}>+ Nuevo</Button>}
@@ -118,6 +114,7 @@ export default function Activos() {
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{e.almacen?.nombre ?? "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-theme-sm"><span className={e.estado === "disponible" ? "text-success-600" : "text-gray-400"}>{e.estado ?? "-"}</span></TableCell>
                 <TableCell className="px-5 py-4 text-right text-theme-sm">
+                  <button onClick={() => { setLabelItem(e); openLabel(); }} className="mr-3 text-brand-500 hover:underline">Etiqueta</button>
                   {puede("activos.editar") && <button onClick={() => abrirEditar(e)} className="mr-3 text-brand-500 hover:underline">Editar</button>}
                   {puede("activos.eliminar") && <button onClick={() => borrar(e)} className="text-error-500 hover:underline">Eliminar</button>}
                 </TableCell>
@@ -146,13 +143,13 @@ export default function Activos() {
             <div><Label>Categoría</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {categorias.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
+                {cargandoCat ? (<option value="" disabled>Cargando...</option>) : categorias.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
               </select>
             </div>
             <div><Label>Modelo</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.modelo_id} onChange={(e) => setForm({ ...form, modelo_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {modelos.map((m) => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
+                {cargandoMod ? (<option value="" disabled>Cargando...</option>) : modelos.map((m) => (<option key={m.id} value={m.id}>{m.nombre}</option>))}
               </select>
             </div>
           </div>
@@ -160,13 +157,13 @@ export default function Activos() {
             <div><Label>Almacén</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.almacen_id} onChange={(e) => setForm({ ...form, almacen_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {almacenes.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
+                {cargandoAlm ? (<option value="" disabled>Cargando...</option>) : almacenes.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
               </select>
             </div>
             <div><Label>Ubicación</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.ubicacion_id} onChange={(e) => setForm({ ...form, ubicacion_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {ubicaciones.map((u) => (<option key={u.id} value={u.id}>{u.nombre}</option>))}
+                {cargandoUbi ? (<option value="" disabled>Cargando...</option>) : ubicaciones.map((u) => (<option key={u.id} value={u.id}>{u.nombre}</option>))}
               </select>
             </div>
           </div>
@@ -189,6 +186,16 @@ export default function Activos() {
           </div>
         </form>
       </Modal>
+
+      {/* Modal etiqueta */}
+      {labelItem && (
+        <LabelModal
+          isOpen={isOpenLabel}
+          onClose={closeLabel}
+          codigo={labelItem.codigo}
+          nombre={labelItem.nombre}
+        />
+      )}
     </>
   );
 }

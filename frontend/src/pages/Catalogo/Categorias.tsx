@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
@@ -17,7 +17,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Categoria {
   id: number;
   nombre: string;
@@ -40,15 +39,11 @@ export default function Categorias() {
     useCrud<Categoria>("/categorias");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [categoriasPadre, setCategoriasPadre] = useState<Opcion[]>([]);
+  const { items: categoriasPadre, cargando: cargandoCat } = useLookup("/categorias");
   const [editando, setEditando] = useState<Categoria | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/categorias", { params: { per_page: 100 } }).then((r) => setCategoriasPadre(r.data.data));
-  }, []);
 
   function abrirNuevo() {
     setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal();
@@ -161,7 +156,7 @@ export default function Categorias() {
             <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               value={form.categoria_padre_id} onChange={(e) => setForm({ ...form, categoria_padre_id: e.target.value })}>
               <option value="">Ninguna</option>
-              {categoriasPadre.filter(c => c.id !== editando?.id).map((c) => (
+              {cargandoCat ? (<option value="" disabled>Cargando...</option>) : categoriasPadre.filter(c => c.id !== editando?.id).map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>

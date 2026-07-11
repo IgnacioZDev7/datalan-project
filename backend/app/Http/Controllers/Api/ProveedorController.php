@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Proveedor\StoreProveedorRequest;
 use App\Http\Requests\Proveedor\UpdateProveedorRequest;
 use App\Http\Resources\ProveedorResource;
+use App\Models\Direccion;
 use App\Models\Proveedor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class ProveedorController extends Controller
 {
@@ -40,11 +42,21 @@ class ProveedorController extends Controller
 
     public function store(StoreProveedorRequest $request): JsonResponse
     {
-        $proveedor = Proveedor::create($request->validated());
+        return DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return (new ProveedorResource($proveedor->load('direccion')))
-            ->response()
-            ->setStatusCode(201);
+            if ($dir && array_filter($dir)) {
+                $data['direccion_id'] = Direccion::create($dir)->id;
+            }
+
+            $proveedor = Proveedor::create($data);
+
+            return (new ProveedorResource($proveedor->load('direccion')))
+                ->response()
+                ->setStatusCode(201);
+        });
     }
 
     public function show(Proveedor $proveedor): ProveedorResource
@@ -54,9 +66,23 @@ class ProveedorController extends Controller
 
     public function update(UpdateProveedorRequest $request, Proveedor $proveedor): ProveedorResource
     {
-        $proveedor->update($request->validated());
+        return DB::transaction(function () use ($request, $proveedor) {
+            $data = $request->validated();
+            $dir = $data['direccion'] ?? null;
+            unset($data['direccion']);
 
-        return new ProveedorResource($proveedor->load('direccion'));
+            if ($dir && array_filter($dir)) {
+                if ($proveedor->direccion_id) {
+                    $proveedor->direccion->update($dir);
+                } else {
+                    $data['direccion_id'] = Direccion::create($dir)->id;
+                }
+            }
+
+            $proveedor->update($data);
+
+            return new ProveedorResource($proveedor->load('direccion'));
+        });
     }
 
     public function destroy(Proveedor $proveedor): JsonResponse

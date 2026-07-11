@@ -6,7 +6,6 @@ import {
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
   PageIcon,
   PieChartIcon,
   TableIcon,
@@ -63,12 +62,8 @@ const navItems: NavItem[] = [
       { name: "Existencias", path: "/existencias", pro: false },
       { name: "Movimientos", path: "/movimientos", pro: false },
       { name: "Kardex", path: "/kardex", pro: false },
+      { name: "Inventarios físicos", path: "/inventarios-fisicos", pro: false },
     ],
-  },
-  {
-    icon: <ListIcon />,
-    name: "Direcciones",
-    path: "/direcciones",
   },
   {
     icon: <PieChartIcon />,
@@ -79,6 +74,13 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "Asignaciones",
     path: "/asignaciones",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Administración",
+    subItems: [
+      { name: "Usuarios", path: "/usuarios", pro: false },
+    ],
   },
 ];
 

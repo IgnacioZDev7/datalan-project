@@ -1,14 +1,15 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
+import CamposDireccion from "../../components/form/CamposDireccion";
 import {
   Table,
   TableBody,
@@ -17,7 +18,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Proyecto {
   id: number;
   codigo: string;
@@ -29,43 +29,52 @@ interface Proyecto {
   fecha_inicio: string | null;
   fecha_fin: string | null;
   observaciones: string | null;
+  direccion?: { ciudad: string; zona: string; calle: string; nro: string; referencia: string };
 }
 
-const FORM_VACIO = { codigo: "", nombre: "", empresa_id: "", tecnico_id: "", direccion_id: "", estado: "activo", fecha_inicio: "", fecha_fin: "", observaciones: "" };
+const DIR_VACIO = { ciudad: "", zona: "", calle: "", nro: "", referencia: "" };
+const FORM_VACIO = { codigo: "", nombre: "", empresa_id: "", tecnico_id: "", direccion: DIR_VACIO, estado: "activo", fecha_inicio: "", fecha_fin: "", observaciones: "" };
 
 export default function Proyectos() {
   const { puede } = useAuth();
   const { items, meta, cargando, filtros, filtrar, irAPagina, crear, actualizar, eliminar } =
     useCrud<Proyecto>("/proyectos");
   const { isOpen, openModal, closeModal } = useModal();
-  const [empresas, setEmpresas] = useState<Opcion[]>([]);
-  const [tecnicos, setTecnicos] = useState<Opcion[]>([]);
-  const [direcciones, setDirecciones] = useState<{ id: number; ciudad: string }[]>([]);
+  const { items: empresas, cargando: cargandoEmp } = useLookup("/empresas");
+  const { items: tecnicos, cargando: cargandoTec } = useLookup("/tecnicos");
   const [editando, setEditando] = useState<Proyecto | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
 
-  useEffect(() => {
-    api.get("/empresas", { params: { per_page: 100 } }).then((r) => setEmpresas(r.data.data));
-    api.get("/tecnicos", { params: { per_page: 100 } }).then((r) => setTecnicos(r.data.data));
-    api.get("/direcciones", { params: { per_page: 100 } }).then((r) => setDirecciones(r.data.data));
-  }, []);
-
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
-  function abrirEditar(e: Proyecto) { setEditando(e); setForm({ codigo: e.codigo, nombre: e.nombre, empresa_id: String(e.empresa_id ?? ""), tecnico_id: String(e.tecnico_id ?? ""), direccion_id: String(e.direccion_id ?? ""), estado: e.estado ?? "activo", fecha_inicio: e.fecha_inicio ?? "", fecha_fin: e.fecha_fin ?? "", observaciones: e.observaciones ?? "" }); setErrores({}); openModal(); }
+  function abrirEditar(e: Proyecto) {
+    setEditando(e);
+    setForm({
+      codigo: e.codigo, nombre: e.nombre, empresa_id: String(e.empresa_id ?? ""), tecnico_id: String(e.tecnico_id ?? ""),
+      direccion: e.direccion ?? DIR_VACIO, estado: e.estado ?? "activo", fecha_inicio: e.fecha_inicio ?? "",
+      fecha_fin: e.fecha_fin ?? "", observaciones: e.observaciones ?? "",
+    });
+    setErrores({}); openModal();
+  }
 
   async function guardar(e: FormEvent) {
     e.preventDefault(); setGuardando(true); setErrores({});
     try {
-      const datos = { ...form, empresa_id: form.empresa_id ? Number(form.empresa_id) : null, tecnico_id: form.tecnico_id ? Number(form.tecnico_id) : null, direccion_id: form.direccion_id ? Number(form.direccion_id) : null };
-      if (editando) await actualizar(editando.id, datos); else await crear(datos);
+      const { direccion, ...datos } = form;
+      const payload = {
+        ...datos,
+        empresa_id: datos.empresa_id ? Number(datos.empresa_id) : null,
+        tecnico_id: datos.tecnico_id ? Number(datos.tecnico_id) : null,
+        direccion: direccion.ciudad || direccion.zona || direccion.calle || direccion.nro ? direccion : undefined,
+      };
+      if (editando) await actualizar(editando.id, payload); else await crear(payload);
       closeModal();
     } catch (err) { const axErr = err as AxiosError<{ errors?: Record<string, string[]> }>; setErrores(axErr.response?.data?.errors ?? {}); }
     finally { setGuardando(false); }
   }
 
-  async function borrar(e: Proyecto) { if (!confirm(`¿Eliminar el proyecto "${e.nombre}"?`)) return; await eliminar(e.id); }
+  async function borrar(e: Proyecto) { if (!confirm(`Eliminar "${e.nombre}"?`)) return; await eliminar(e.id); }
 
   return (
     <>
@@ -120,22 +129,17 @@ export default function Proyectos() {
             <div><Label>Empresa</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.empresa_id} onChange={(e) => setForm({ ...form, empresa_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {empresas.map((e) => (<option key={e.id} value={e.id}>{e.nombre}</option>))}
+                {cargandoEmp ? (<option value="" disabled>Cargando...</option>) : empresas.map((e) => (<option key={e.id} value={e.id}>{e.nombre}</option>))}
               </select>
             </div>
             <div><Label>Técnico</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.tecnico_id} onChange={(e) => setForm({ ...form, tecnico_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {tecnicos.map((t) => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
+                {cargandoTec ? (<option value="" disabled>Cargando...</option>) : tecnicos.map((t) => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
               </select>
             </div>
           </div>
-          <div><Label>Dirección</Label>
-            <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.direccion_id} onChange={(e) => setForm({ ...form, direccion_id: e.target.value })}>
-              <option value="">Seleccione...</option>
-              {direcciones.map((d) => (<option key={d.id} value={d.id}>{d.ciudad}</option>))}
-            </select>
-          </div>
+          <CamposDireccion value={form.direccion} onChange={(field, val) => setForm({ ...form, direccion: { ...form.direccion, [field]: val } })} errores={errores} />
           <div className="grid grid-cols-2 gap-4">
             <div><Label>Fecha inicio</Label><input type="date" className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} /></div>
             <div><Label>Fecha fin</Label><input type="date" className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} />{errores.fecha_fin && <p className="mt-1 text-xs text-error-500">{errores.fecha_fin[0]}</p>}</div>

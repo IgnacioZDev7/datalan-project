@@ -19,10 +19,12 @@ class UsuarioResource extends JsonResource
             'correo_electronico' => $this->correo_electronico,
             'cargo' => $this->cargo,
             'telefono' => $this->telefono,
+            'direccion_id' => $this->direccion_id,
             'activo' => $this->activo,
             'ultimo_acceso' => $this->ultimo_acceso,
             'roles' => $this->getRoleNames(),
             'permisos' => $this->getAllPermissions()->pluck('name'),
+            'direccion' => new DireccionResource($this->whenLoaded('direccion')),
         ];
     }
 }

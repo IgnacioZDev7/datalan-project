@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { AxiosError } from "axios";
 import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
+import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
-import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "../../components/ui/table";
 
-interface Opcion { id: number; nombre: string; }
 interface Asignacion {
   id: number;
   activo_id: number | null;
@@ -38,19 +37,13 @@ export default function Asignaciones() {
     useCrud<Asignacion>("/asignaciones");
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [activos, setActivos] = useState<Opcion[]>([]);
-  const [tecnicos, setTecnicos] = useState<Opcion[]>([]);
-  const [proyectos, setProyectos] = useState<Opcion[]>([]);
+  const { items: activos, cargando: cargandoAct } = useLookup("/activos");
+  const { items: tecnicos, cargando: cargandoTec } = useLookup("/tecnicos");
+  const { items: proyectos, cargando: cargandoProy } = useLookup("/proyectos");
   const [editando, setEditando] = useState<Asignacion | null>(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState<Record<string, string[]>>({});
   const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    api.get("/activos", { params: { per_page: 100 } }).then((r) => setActivos(r.data.data));
-    api.get("/tecnicos", { params: { per_page: 100 } }).then((r) => setTecnicos(r.data.data));
-    api.get("/proyectos", { params: { per_page: 100 } }).then((r) => setProyectos(r.data.data));
-  }, []);
 
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setErrores({}); openModal(); }
   function abrirEditar(e: Asignacion) {
@@ -134,21 +127,21 @@ export default function Asignaciones() {
             <div><Label>Activo *</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.activo_id} onChange={(e) => setForm({ ...form, activo_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {activos.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
+                {cargandoAct ? (<option value="" disabled>Cargando...</option>) : activos.map((a) => (<option key={a.id} value={a.id}>{a.nombre}</option>))}
               </select>
               {errores.activo_id && <p className="mt-1 text-xs text-error-500">{errores.activo_id[0]}</p>}
             </div>
             <div><Label>Técnico</Label>
               <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.tecnico_id} onChange={(e) => setForm({ ...form, tecnico_id: e.target.value })}>
                 <option value="">Seleccione...</option>
-                {tecnicos.map((t) => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
+                {cargandoTec ? (<option value="" disabled>Cargando...</option>) : tecnicos.map((t) => (<option key={t.id} value={t.id}>{t.nombre}</option>))}
               </select>
             </div>
           </div>
           <div><Label>Proyecto</Label>
             <select className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" value={form.proyecto_id} onChange={(e) => setForm({ ...form, proyecto_id: e.target.value })}>
               <option value="">Seleccione...</option>
-              {proyectos.map((p) => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
+              {cargandoProy ? (<option value="" disabled>Cargando...</option>) : proyectos.map((p) => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
