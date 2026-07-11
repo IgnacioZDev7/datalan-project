@@ -218,12 +218,12 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`py-6 flex ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
-        <Link to="/">
+      <div className="flex justify-center py-6">
+        <Link to="/" className="flex justify-center w-full">
           {isExpanded || isHovered || isMobileOpen ? (
-            <img src="/images/logo-datalan.png" alt="DATALAN" className="h-12 w-auto max-w-[180px] object-contain" />
+            <img src="/images/logo-datalan.png" alt="DATALAN" className="w-auto h-20 max-w-[210px] object-contain" />
           ) : (
-            <img src="/images/logo-datalan.png" alt="DATALAN" className="h-9 w-9 object-contain" />
+            <img src="/images/logo-datalan.png" alt="DATALAN" className="object-contain w-12 h-12" />
           )}
         </Link>
       </div>

@@ -21,7 +21,7 @@ export default function AuthLayout({
                 <img
                   src="/images/logo-datalan.png"
                   alt="DATALAN"
-                  className="w-64 p-4 bg-white shadow-lg rounded-2xl"
+                  className="object-contain w-80 drop-shadow-lg"
                 />
               </Link>
               <p className="text-center text-gray-300 dark:text-white/60">
