@@ -17,10 +17,14 @@ export default function AuthLayout({
             {/* <!-- ===== Common Grid Shape Start ===== --> */}
             <GridShape />
             <div className="flex flex-col items-center max-w-xs">
-              <Link to="/" className="block mb-4">
-                <span className="text-4xl font-bold text-white">DATALAN</span>
+              <Link to="/" className="block mb-6">
+                <img
+                  src="/images/logo-datalan.png"
+                  alt="DATALAN"
+                  className="w-64 p-4 bg-white shadow-lg rounded-2xl"
+                />
               </Link>
-              <p className="text-center text-gray-400 dark:text-white/60">
+              <p className="text-center text-gray-300 dark:text-white/60">
                 Sistema de Inventario — Área Técnica
               </p>
             </div>
