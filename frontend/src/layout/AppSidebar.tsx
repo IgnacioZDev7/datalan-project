@@ -80,6 +80,7 @@ const navItems: NavItem[] = [
     name: "Administración",
     subItems: [
       { name: "Usuarios", path: "/usuarios", pro: false },
+      { name: "Bitácora", path: "/bitacora", pro: false },
     ],
   },
 ];

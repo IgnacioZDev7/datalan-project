@@ -27,6 +27,7 @@ import Alertas from "./pages/Alertas/Alertas";
 import Asignaciones from "./pages/Asignaciones/Asignaciones";
 import Usuarios from "./pages/Usuarios/Usuarios";
 import InventariosFisicos from "./pages/Inventario/InventariosFisicos";
+import Bitacora from "./pages/Administracion/Bitacora";
 
 export default function App() {
   return (
@@ -71,6 +72,7 @@ export default function App() {
 
               {/* Administración */}
               <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/bitacora" element={<Bitacora />} />
 
               {/* Inventario físico */}
               <Route path="/inventarios-fisicos" element={<InventariosFisicos />} />
