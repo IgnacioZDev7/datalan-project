@@ -44,17 +44,28 @@ class DashboardController extends Controller
             ->values();
 
         // --- Stock por categoría ---
+        // SUM() vuelve como string en MySQL y PostgreSQL: casteamos a número.
         $stock_por_categoria = Existencia::join('productos', 'existencias.producto_id', '=', 'productos.id')
             ->join('categorias', 'productos.categoria_id', '=', 'categorias.id')
             ->select('categorias.nombre as categoria', DB::raw('SUM(existencias.cantidad_actual) as total'))
             ->groupBy('categorias.nombre')
             ->orderByDesc('total')
-            ->get();
+            ->get()
+            ->map(fn ($row) => [
+                'categoria' => $row->categoria,
+                'total'     => (float) $row->total,
+            ])
+            ->values();
 
         // --- Activos por situación ---
         $activos_por_situacion = Activo::select('situacion', DB::raw('COUNT(*) as total'))
             ->groupBy('situacion')
-            ->get();
+            ->get()
+            ->map(fn ($row) => [
+                'situacion' => $row->situacion,
+                'total'     => (int) $row->total,
+            ])
+            ->values();
 
         return response()->json([
             'kpis'                    => $kpis,

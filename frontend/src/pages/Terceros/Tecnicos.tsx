@@ -4,6 +4,8 @@ import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
 import { useModal } from "../../hooks/useModal";
 import { useAuth } from "../../context/AuthContext";
+import { ActivoBadge } from "../../components/common/EstadoBadge";
+import { Acciones, BotonAccion, IconoEditar, IconoEliminar } from "../../components/common/TablaAcciones";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -60,21 +62,23 @@ export default function Tecnicos() {
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableHeader className="border-b border-gray-100 bg-gray-50 dark:bg-white/[0.02] dark:border-gray-800">
               <TableRow>{["Nombre", "CI", "Cargo", "Teléfono", "Estado", ""].map((h) => (<TableCell key={h} isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">{h}</TableCell>))}</TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
               {cargando ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Cargando...</TableCell></TableRow>)
               : items.length === 0 ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Sin resultados.</TableCell></TableRow>)
-              : items.map((p) => (<TableRow key={p.id}>
-                <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{p.nombre}</TableCell>
+              : items.map((p) => (<TableRow key={p.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                <TableCell className="px-5 py-4 font-medium text-gray-800 text-theme-sm dark:text-white/90">{p.nombre}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{p.ci ?? "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{p.cargo ?? "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{p.telefono ?? "-"}</TableCell>
-                <TableCell className="px-5 py-4 text-theme-sm"><span className={p.activo ? "text-success-600" : "text-gray-400"}>{p.activo ? "Activo" : "Inactivo"}</span></TableCell>
-                <TableCell className="px-5 py-4 text-right text-theme-sm">
-                  {puede("tecnicos.editar") && <button onClick={() => abrirEditar(p)} className="mr-3 text-brand-500 hover:underline">Editar</button>}
-                  {puede("tecnicos.eliminar") && <button onClick={() => borrar(p)} className="text-error-500 hover:underline">Eliminar</button>}
+                <TableCell className="px-5 py-4 text-theme-sm"><ActivoBadge activo={p.activo} /></TableCell>
+                <TableCell className="px-5 py-4">
+                  <Acciones>
+                    {puede("tecnicos.editar") && <BotonAccion titulo="Editar" color="brand" onClick={() => abrirEditar(p)}>{IconoEditar}</BotonAccion>}
+                    {puede("tecnicos.eliminar") && <BotonAccion titulo="Eliminar" color="error" onClick={() => borrar(p)}>{IconoEliminar}</BotonAccion>}
+                  </Acciones>
                 </TableCell>
               </TableRow>))}
             </TableBody>

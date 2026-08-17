@@ -6,6 +6,8 @@ import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import EstadoBadge from "../../components/common/EstadoBadge";
+import { Acciones, BotonAccion, IconoVer, IconoCerrar, IconoEliminar } from "../../components/common/TablaAcciones";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -33,9 +35,6 @@ interface Linea { producto_id: string; cantidad_fisica: string; }
 const LINEA_VACIA: Linea = { producto_id: "", cantidad_fisica: "" };
 const ESTADOS: Record<string, string> = {
   en_proceso: "En proceso", cerrado: "Cerrado", anulado: "Anulado",
-};
-const COLORES: Record<string, string> = {
-  en_proceso: "text-blue-600", cerrado: "text-success-600", anulado: "text-gray-400",
 };
 
 export default function InventariosFisicos() {
@@ -151,22 +150,24 @@ export default function InventariosFisicos() {
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableHeader className="border-b border-gray-100 bg-gray-50 dark:bg-white/[0.02] dark:border-gray-800">
               <TableRow>{["Código", "Almacén", "Fecha", "Estado", "Renglones", ""].map((h) => (<TableCell key={h} isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">{h}</TableCell>))}</TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
               {cargando ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Cargando...</TableCell></TableRow>)
               : items.length === 0 ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Sin resultados.</TableCell></TableRow>)
-              : items.map((c) => (<TableRow key={c.id}>
-                <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{c.codigo}</TableCell>
+              : items.map((c) => (<TableRow key={c.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                <TableCell className="px-5 py-4 font-medium text-gray-800 text-theme-sm dark:text-white/90">{c.codigo}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{nombreAlmacen(c.almacen_id)}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{String(c.fecha).slice(0, 10)}</TableCell>
-                <TableCell className="px-5 py-4 text-theme-sm"><span className={COLORES[c.estado] ?? "text-gray-500"}>{ESTADOS[c.estado] ?? c.estado}</span></TableCell>
+                <TableCell className="px-5 py-4 text-theme-sm"><EstadoBadge valor={c.estado} /></TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{c.detalles_count}</TableCell>
-                <TableCell className="px-5 py-4 text-right text-theme-sm">
-                  <button onClick={() => ver(c)} className="mr-3 text-brand-500 hover:underline">Ver</button>
-                  {c.estado === "en_proceso" && puede("inventarios_fisicos.editar") && <button onClick={() => cerrar(c)} className="mr-3 text-success-600 hover:underline">Cerrar</button>}
-                  {c.estado === "en_proceso" && puede("inventarios_fisicos.eliminar") && <button onClick={() => anular(c)} className="text-error-500 hover:underline">Anular</button>}
+                <TableCell className="px-5 py-4">
+                  <Acciones>
+                    <BotonAccion titulo="Ver detalles" color="gray" onClick={() => ver(c)}>{IconoVer}</BotonAccion>
+                    {c.estado === "en_proceso" && puede("inventarios_fisicos.editar") && <BotonAccion titulo="Cerrar conteo" color="success" onClick={() => cerrar(c)}>{IconoCerrar}</BotonAccion>}
+                    {c.estado === "en_proceso" && puede("inventarios_fisicos.eliminar") && <BotonAccion titulo="Anular" color="error" onClick={() => anular(c)}>{IconoEliminar}</BotonAccion>}
+                  </Acciones>
                 </TableCell>
               </TableRow>))}
             </TableBody>

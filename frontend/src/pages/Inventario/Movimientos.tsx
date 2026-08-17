@@ -7,6 +7,9 @@ import { useModal } from "../../hooks/useModal";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { downloadReport } from "../../utils/downloadReport";
+import Badge from "../../components/ui/badge/Badge";
+import EstadoBadge from "../../components/common/EstadoBadge";
+import { Acciones, BotonAccion, IconoEliminar } from "../../components/common/TablaAcciones";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -145,7 +148,7 @@ export default function Movimientos() {
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableHeader className="border-b border-gray-100 bg-gray-50 dark:bg-white/[0.02] dark:border-gray-800">
               <TableRow>
                 {["Código", "Tipo", "Fecha", "Origen", "Destino", "Estado", ""].map((h) => (
                   <TableCell key={h} isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">{h}</TableCell>
@@ -159,19 +162,21 @@ export default function Movimientos() {
                 <TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Sin movimientos.</TableCell></TableRow>
               ) : (
                 items.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{m.codigo}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 capitalize text-theme-sm dark:text-gray-400">{m.tipo}</TableCell>
+                  <TableRow key={m.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                    <TableCell className="px-5 py-4 font-medium text-gray-800 text-theme-sm dark:text-white/90">{m.codigo}</TableCell>
+                    <TableCell className="px-5 py-4 text-theme-sm"><EstadoBadge valor={m.tipo} /></TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{String(m.fecha).slice(0, 10)}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{m.almacen_origen_id ?? "-"}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{m.almacen_destino_id ?? "-"}</TableCell>
                     <TableCell className="px-5 py-4 text-theme-sm">
-                      <span className={m.anulado ? "text-error-500" : "text-success-600"}>{m.anulado ? "Anulado" : "Vigente"}</span>
+                      <Badge variant="light" color={m.anulado ? "error" : "success"} size="sm">{m.anulado ? "Anulado" : "Vigente"}</Badge>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-right text-theme-sm">
-                      {!m.anulado && puede("movimientos.anular") && (
-                        <button onClick={() => anular(m)} className="text-error-500 hover:underline">Anular</button>
-                      )}
+                    <TableCell className="px-5 py-4">
+                      <Acciones>
+                        {!m.anulado && puede("movimientos.anular") && (
+                          <BotonAccion titulo="Anular" color="error" onClick={() => anular(m)}>{IconoEliminar}</BotonAccion>
+                        )}
+                      </Acciones>
                     </TableCell>
                   </TableRow>
                 ))

@@ -81,7 +81,7 @@ export default function Bitacora() {
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableHeader className="border-b border-gray-100 bg-gray-50 dark:bg-white/[0.02] dark:border-gray-800">
               <TableRow>
                 {["Fecha", "Usuario", "Acción", "Entidad", "Detalle"].map((h) => (
                   <TableCell key={h} isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">
@@ -105,7 +105,7 @@ export default function Bitacora() {
                 </TableRow>
               ) : (
                 items.map((e) => (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                     <TableCell className="px-5 py-3 text-theme-sm text-gray-500 dark:text-gray-400">
                       {new Date(e.created_at).toLocaleString("es-BO", {
                         year: "numeric", month: "2-digit", day: "2-digit",

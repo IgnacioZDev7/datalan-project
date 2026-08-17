@@ -5,6 +5,9 @@ import { useCrud } from "../../hooks/useCrud";
 import { useLookup } from "../../hooks/useLookup";
 import { useModal } from "../../hooks/useModal";
 import { useAuth } from "../../context/AuthContext";
+import Badge from "../../components/ui/badge/Badge";
+import { ActivoBadge } from "../../components/common/EstadoBadge";
+import { Acciones, BotonAccion, IconoEditar, IconoEliminar } from "../../components/common/TablaAcciones";
 import { Modal } from "../../components/ui/modal";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -126,22 +129,28 @@ export default function Usuarios() {
       <div className="overflow-hidden border border-gray-200 rounded-xl dark:border-gray-800">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+            <TableHeader className="border-b border-gray-100 bg-gray-50 dark:bg-white/[0.02] dark:border-gray-800">
               <TableRow>{["Nombres", "Correo", "CI", "Cargo", "Roles", "Estado", ""].map((h) => (<TableCell key={h} isHeader className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400">{h}</TableCell>))}</TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
               {cargando ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Cargando...</TableCell></TableRow>)
               : items.length === 0 ? (<TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Sin resultados.</TableCell></TableRow>)
-              : items.map((u) => (<TableRow key={u.id}>
-                <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{u.nombres} {u.apellido_paterno ?? ""}</TableCell>
+              : items.map((u) => (<TableRow key={u.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                <TableCell className="px-5 py-4 font-medium text-gray-800 text-theme-sm dark:text-white/90">{u.nombres} {u.apellido_paterno ?? ""}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{u.correo_electronico}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{u.ci ?? "-"}</TableCell>
                 <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{u.cargo ?? "-"}</TableCell>
-                <TableCell className="px-5 py-4 text-theme-sm">{u.roles?.join(", ") || "-"}</TableCell>
-                <TableCell className="px-5 py-4 text-theme-sm"><span className={u.activo ? "text-success-600" : "text-gray-400"}>{u.activo ? "Activo" : "Inactivo"}</span></TableCell>
-                <TableCell className="px-5 py-4 text-right text-theme-sm">
-                  {puede("usuarios.editar") && <button onClick={() => abrirEditar(u)} className="mr-3 text-brand-500 hover:underline">Editar</button>}
-                  {u.activo && puede("usuarios.eliminar") && <button onClick={() => desactivar(u)} className="text-error-500 hover:underline">Desactivar</button>}
+                <TableCell className="px-5 py-4 text-theme-sm">
+                  <div className="flex flex-wrap gap-1">
+                    {u.roles?.length ? u.roles.map((r) => <Badge key={r} variant="light" color="primary" size="sm">{r}</Badge>) : <span className="text-gray-400">—</span>}
+                  </div>
+                </TableCell>
+                <TableCell className="px-5 py-4 text-theme-sm"><ActivoBadge activo={u.activo} /></TableCell>
+                <TableCell className="px-5 py-4">
+                  <Acciones>
+                    {puede("usuarios.editar") && <BotonAccion titulo="Editar" color="brand" onClick={() => abrirEditar(u)}>{IconoEditar}</BotonAccion>}
+                    {u.activo && puede("usuarios.eliminar") && <BotonAccion titulo="Desactivar" color="error" onClick={() => desactivar(u)}>{IconoEliminar}</BotonAccion>}
+                  </Acciones>
                 </TableCell>
               </TableRow>))}
             </TableBody>

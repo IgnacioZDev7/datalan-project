@@ -2,6 +2,7 @@ import PageMeta from "../../components/common/PageMeta";
 import { useCrud } from "../../hooks/useCrud";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/ui/button/Button";
+import Badge from "../../components/ui/badge/Badge";
 import { downloadReport } from "../../utils/downloadReport";
 import {
   Table,
@@ -15,12 +16,16 @@ interface Existencia {
   id: number;
   producto_id: number;
   almacen_id: number;
-  stock_actual: number;
-  stock_minimo: number;
-  stock_maximo: number;
+  cantidad_actual: number;
+  cantidad_minima: number;
+  cantidad_maxima: number;
+  bajo_minimo: boolean;
   producto?: { nombre: string; codigo: string };
   almacen?: { nombre: string };
 }
+
+const fmt = (n: number | string | null | undefined) =>
+  Number(n ?? 0).toLocaleString("es-BO", { maximumFractionDigits: 2 });
 
 export default function Existencias() {
   const { puede } = useAuth();
@@ -56,13 +61,18 @@ export default function Existencias() {
                 <TableRow><TableCell className="px-5 py-6 text-center text-gray-500">Sin resultados.</TableCell></TableRow>
               ) : (
                 items.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{e.producto?.nombre ?? "-"}</TableCell>
+                  <TableRow key={e.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                    <TableCell className="px-5 py-4 font-medium text-gray-800 text-theme-sm dark:text-white/90">{e.producto?.nombre ?? "-"}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{e.producto?.codigo ?? "-"}</TableCell>
                     <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{e.almacen?.nombre ?? "-"}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-700 text-theme-sm dark:text-gray-300">{e.stock_actual}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{e.stock_minimo}</TableCell>
-                    <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{e.stock_maximo}</TableCell>
+                    <TableCell className="px-5 py-4 text-theme-sm">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${e.bajo_minimo ? "text-error-500" : "text-gray-800 dark:text-white/90"}`}>{fmt(e.cantidad_actual)}</span>
+                        {e.bajo_minimo && <Badge variant="light" color="error" size="sm">Bajo mínimo</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{fmt(e.cantidad_minima)}</TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-theme-sm dark:text-gray-400">{fmt(e.cantidad_maxima)}</TableCell>
                   </TableRow>
                 ))
               )}
