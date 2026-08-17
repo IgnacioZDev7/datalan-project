@@ -61,4 +61,38 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Sesion cerrada correctamente.']);
     }
+
+    /**
+     * Cambio de la propia contraseña por el usuario autenticado.
+     * Exige la contraseña actual y aplica el estandar de seguridad.
+     */
+    public function cambiarContrasena(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'contrasena_actual' => ['required', 'string'],
+            'contrasena' => ['required', 'string', 'min:8', 'confirmed', 'regex:/[A-Za-z]/', 'regex:/[0-9]/'],
+        ], [
+            'contrasena_actual.required' => 'Debes ingresar tu contraseña actual.',
+            'contrasena.required' => 'La nueva contraseña es obligatoria.',
+            'contrasena.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+            'contrasena.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
+            'contrasena.regex' => 'La contraseña debe incluir letras y números.',
+        ]);
+
+        $usuario = $request->user();
+
+        if (! Hash::check($datos['contrasena_actual'], $usuario->contrasena)) {
+            throw ValidationException::withMessages([
+                'contrasena_actual' => ['La contraseña actual es incorrecta.'],
+            ]);
+        }
+
+        $usuario->update(['contrasena' => $datos['contrasena']]);
+
+        // Seguridad: cierra las demas sesiones abiertas, conserva la actual.
+        $tokenActualId = $request->user()->currentAccessToken()->id;
+        $usuario->tokens()->where('id', '!=', $tokenActualId)->delete();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente.']);
+    }
 }

@@ -23,7 +23,7 @@ class UpdateUsuarioRequest extends FormRequest
             'ci' => ['nullable', 'string', 'max:20', Rule::unique('usuarios', 'ci')->ignore($id)],
             'correo_electronico' => ['sometimes', 'required', 'email', 'max:150',
                 Rule::unique('usuarios', 'correo_electronico')->ignore($id)],
-            'contrasena' => ['nullable', 'string', 'min:6'],
+            'contrasena' => ['nullable', 'string', 'min:8', 'regex:/[A-Za-z]/', 'regex:/[0-9]/'],
             'cargo' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'activo' => ['boolean'],
@@ -43,7 +43,8 @@ class UpdateUsuarioRequest extends FormRequest
         return [
             'correo_electronico.unique' => 'Ya existe un usuario con ese correo.',
             'ci.unique' => 'Ya existe un usuario con ese CI.',
-            'contrasena.min' => 'La contraseña debe tener al menos 6 caracteres.',
+            'contrasena.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'contrasena.regex' => 'La contraseña debe incluir letras y números.',
             'roles.*.exists' => 'Uno de los roles no existe.',
         ];
     }

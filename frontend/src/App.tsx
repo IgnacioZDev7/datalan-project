@@ -28,6 +28,7 @@ import Asignaciones from "./pages/Asignaciones/Asignaciones";
 import Usuarios from "./pages/Usuarios/Usuarios";
 import InventariosFisicos from "./pages/Inventario/InventariosFisicos";
 import Bitacora from "./pages/Administracion/Bitacora";
+import CambiarContrasena from "./pages/Perfil/CambiarContrasena";
 
 export default function App() {
   return (
@@ -76,6 +77,9 @@ export default function App() {
 
               {/* Inventario físico */}
               <Route path="/inventarios-fisicos" element={<InventariosFisicos />} />
+
+              {/* Perfil (cualquier usuario) */}
+              <Route path="/perfil/contrasena" element={<CambiarContrasena />} />
             </Route>
           </Route>
 

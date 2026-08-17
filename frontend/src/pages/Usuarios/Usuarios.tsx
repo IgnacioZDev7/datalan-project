@@ -177,7 +177,7 @@ export default function Usuarios() {
             <div><Label>Teléfono</Label><Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} /></div>
           </div>
           <div><Label>Correo electrónico *</Label><Input type="email" value={form.correo_electronico} onChange={(e) => setForm({ ...form, correo_electronico: e.target.value })} />{errores.correo_electronico && <p className="mt-1 text-xs text-error-500">{errores.correo_electronico[0]}</p>}</div>
-          <div><Label>{editando ? "Contraseña (dejar vacío para no cambiar)" : "Contraseña *"}</Label><Input type="password" value={form.contrasena} onChange={(e) => setForm({ ...form, contrasena: e.target.value })} />{errores.contrasena && <p className="mt-1 text-xs text-error-500">{errores.contrasena[0]}</p>}</div>
+          <div><Label>{editando ? "Contraseña (dejar vacío para no cambiar)" : "Contraseña *"}</Label><Input type="password" value={form.contrasena} onChange={(e) => setForm({ ...form, contrasena: e.target.value })} /><p className="mt-1 text-xs text-gray-400">Mínimo 8 caracteres, con letras y números.</p>{errores.contrasena && <p className="mt-1 text-xs text-error-500">{errores.contrasena[0]}</p>}</div>
           <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
           <div>
             <Label>Roles</Label>

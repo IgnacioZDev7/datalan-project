@@ -20,7 +20,7 @@ class StoreUsuarioRequest extends FormRequest
             'apellido_materno' => ['nullable', 'string', 'max:60'],
             'ci' => ['nullable', 'string', 'max:20', Rule::unique('usuarios', 'ci')],
             'correo_electronico' => ['required', 'email', 'max:150', Rule::unique('usuarios', 'correo_electronico')],
-            'contrasena' => ['required', 'string', 'min:6'],
+            'contrasena' => ['required', 'string', 'min:8', 'regex:/[A-Za-z]/', 'regex:/[0-9]/'],
             'cargo' => ['nullable', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'activo' => ['boolean'],
@@ -43,7 +43,8 @@ class StoreUsuarioRequest extends FormRequest
             'correo_electronico.unique' => 'Ya existe un usuario con ese correo.',
             'ci.unique' => 'Ya existe un usuario con ese CI.',
             'contrasena.required' => 'La contraseña es obligatoria.',
-            'contrasena.min' => 'La contraseña debe tener al menos 6 caracteres.',
+            'contrasena.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'contrasena.regex' => 'La contraseña debe incluir letras y números.',
             'roles.*.exists' => 'Uno de los roles no existe.',
         ];
     }
